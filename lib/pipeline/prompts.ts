@@ -377,6 +377,16 @@ Use responsible CTAs only:
   Yes:  "Check current bonus terms before registering"
         "Verify availability in your country before depositing"
   No:   "Sign up now", "Claim your bonus today", "Don't miss this offer"
+
+SPECIFIC FAILURE MODES TO AVOID:
+- Do not reproduce CTA instructions verbatim from this prompt into the article
+- Do not write sections about how to evaluate a casino feature when 
+  you have no data about how this casino performs on that feature 
+- Omit the section or merge it into the relevant pro/con instead
+- The responsible CTA appears ONCE, in the final verdict only
+- FAQ questions must be answerable specifically about this casino; 
+  if a question applies to every casino, replace it
+
   `,
   };
 
