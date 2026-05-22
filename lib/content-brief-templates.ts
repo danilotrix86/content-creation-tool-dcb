@@ -87,19 +87,33 @@ questions that would apply equally to any casino.
 - Any claim about legality for specific countries unless explicitly confirmed in the brief
 - Phrases implying guaranteed wins, easy money, or financial motivation to gamble`;
 
-export function getContentBriefPlaceholder(
-  articleLanguage: string,
-  articleType: ArticleType
-): string {
-  if (articleLanguage === "pl" && articleType === "casino_review") {
-    return POLISH_CASINO_REVIEW_CONTENT_BRIEF_PLACEHOLDER;
-  }
-  return DEFAULT_CONTENT_BRIEF_PLACEHOLDER;
-}
-
 export function usesPolishCasinoReviewBrief(
   articleLanguage: string,
   articleType: ArticleType
 ): boolean {
   return articleLanguage === "pl" && articleType === "casino_review";
+}
+
+export function getDefaultContentBrief(
+  articleLanguage: string,
+  articleType: ArticleType
+): string {
+  if (usesPolishCasinoReviewBrief(articleLanguage, articleType)) {
+    return POLISH_CASINO_REVIEW_CONTENT_BRIEF_PLACEHOLDER;
+  }
+  return "";
+}
+
+export function isPolishCasinoReviewTemplate(contentBrief: string): boolean {
+  return contentBrief === POLISH_CASINO_REVIEW_CONTENT_BRIEF_PLACEHOLDER;
+}
+
+export function getContentBriefPlaceholder(
+  articleLanguage: string,
+  articleType: ArticleType
+): string {
+  if (usesPolishCasinoReviewBrief(articleLanguage, articleType)) {
+    return "Edit the loaded template below…";
+  }
+  return DEFAULT_CONTENT_BRIEF_PLACEHOLDER;
 }

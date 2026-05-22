@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ARTICLE_TYPE_OPTIONS,
@@ -8,6 +8,8 @@ import {
 } from "@/lib/pipeline/types";
 import {
   getContentBriefPlaceholder,
+  getDefaultContentBrief,
+  isPolishCasinoReviewTemplate,
   usesPolishCasinoReviewBrief,
 } from "@/lib/content-brief-templates";
 
@@ -191,6 +193,25 @@ interface ArticleFormProps {
 export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
   const [form, setForm] = useState<FormData>(initialForm);
 
+  useEffect(() => {
+    setForm((f) => {
+      if (usesPolishCasinoReviewBrief(f.article_language, f.article_type)) {
+        if (f.content_brief.trim()) return f;
+        return {
+          ...f,
+          content_brief: getDefaultContentBrief(
+            f.article_language,
+            f.article_type
+          ),
+        };
+      }
+      if (isPolishCasinoReviewTemplate(f.content_brief)) {
+        return { ...f, content_brief: "" };
+      }
+      return f;
+    });
+  }, [form.article_language, form.article_type]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const payload = {
@@ -328,9 +349,9 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
           Editorial direction for the draft: target audience, tone, angle, must-cover ideas, CTAs,
           or things to avoid. Passed into outline and article generation.
         </Tip>
-        {showPolishCasinoReviewBriefHint && !form.content_brief.trim() && (
+        {showPolishCasinoReviewBriefHint && (
           <p className="mb-2 text-xs text-violet-700">
-            Polish casino review template shown below — paste or edit it before generating.
+            Polish casino review template loaded — edit before generating.
           </p>
         )}
         <textarea
