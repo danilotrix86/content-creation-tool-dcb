@@ -45,3 +45,5 @@ next-env.d.ts
 
 # legacy app folder (local dev leftovers)
 /web/
+
+.vercel

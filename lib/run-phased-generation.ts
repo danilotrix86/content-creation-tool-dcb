@@ -13,6 +13,18 @@ export interface PhasedGeneratePayload {
   sitemap_url?: string | null;
 }
 
+const MAX_STEP_RETRIES = 3;
+
+function isRetryableStepError(status: number, error?: string): boolean {
+  if (status === 409) {
+    return true;
+  }
+  return (
+    status === 500 &&
+    Boolean(error?.includes("Job was updated concurrently. Retry the step."))
+  );
+}
+
 export async function runPhasedGeneration(
   payload: PhasedGeneratePayload,
   onProgress: (message: string) => void,
@@ -45,19 +57,38 @@ export async function runPhasedGeneration(
       throw new Error("Generation superseded by a newer request.");
     }
 
-    const stepRes = await fetch(`/api/generate/jobs/${jobId}/step`, {
-      method: "POST",
-    });
-
-    const json = (await stepRes.json().catch(() => ({}))) as {
+    let stepRes: Response | null = null;
+    let json: {
       error?: string;
       done?: boolean;
       messages?: string[];
       result?: ArticleResult & { id?: string };
-    };
+      retry?: boolean;
+    } = {};
 
-    if (!stepRes.ok) {
-      throw new Error(json.error || `Step failed: ${stepRes.status}`);
+    for (let attempt = 0; attempt < MAX_STEP_RETRIES; attempt++) {
+      stepRes = await fetch(`/api/generate/jobs/${jobId}/step`, {
+        method: "POST",
+      });
+
+      json = (await stepRes.json().catch(() => ({}))) as typeof json;
+
+      if (stepRes.ok) {
+        break;
+      }
+
+      if (
+        !isRetryableStepError(stepRes.status, json.error) ||
+        attempt === MAX_STEP_RETRIES - 1
+      ) {
+        throw new Error(json.error || `Step failed: ${stepRes.status}`);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+
+    if (!stepRes?.ok) {
+      throw new Error(json.error || "Step failed.");
     }
 
     if (activeJobRef && activeJobRef.current !== jobId) {

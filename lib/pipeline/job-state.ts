@@ -56,3 +56,26 @@ export interface GenerationJobRow {
 
 export const SECTIONS_PER_BATCH = 3;
 export const PREVIOUS_CONTENT_MAX_CHARS = 5000;
+
+export const JOB_PHASE_ORDER: JobPhase[] = [
+  "research_serp",
+  "research_scrape",
+  "research_insights",
+  "plan_strategy",
+  "plan_outline",
+  "plan_internal_links",
+  "write_batch",
+  "image_featured",
+  "image_pick_sections",
+  "image_inline",
+  "finalize",
+  "done",
+];
+
+export function comparePhases(a: JobPhase, b: JobPhase): number {
+  return JOB_PHASE_ORDER.indexOf(a) - JOB_PHASE_ORDER.indexOf(b);
+}
+
+export function isPhaseAtOrPast(phase: JobPhase, target: JobPhase): boolean {
+  return comparePhases(phase, target) >= 0;
+}
