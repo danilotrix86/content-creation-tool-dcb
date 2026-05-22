@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
     "undici",
     "@supabase/supabase-js",
   ],
-  // Pin Turbopack root when the monorepo has other package manifests above web/.
+  // Pin Turbopack root to this app directory.
   turbopack: {
     root: path.join(__dirname),
   },
