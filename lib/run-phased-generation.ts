@@ -11,6 +11,7 @@ export interface PhasedGeneratePayload {
   search_language: string;
   article_language: string;
   output_format: "markdown" | "html";
+  inline_image_count?: number;
   sitemap_url?: string | null;
 }
 

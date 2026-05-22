@@ -56,6 +56,16 @@ export interface ArticleOutline {
   section_target?: { min: number; max: number };
 }
 
+export const DEFAULT_INLINE_IMAGE_COUNT = 2;
+export const MAX_INLINE_IMAGE_COUNT = 3;
+
+export function resolveInlineImageCount(count: number | undefined): number {
+  if (count === undefined || count === null || Number.isNaN(count)) {
+    return DEFAULT_INLINE_IMAGE_COUNT;
+  }
+  return Math.max(0, Math.min(MAX_INLINE_IMAGE_COUNT, Math.floor(count)));
+}
+
 export interface ArticleInput {
   main_topic: string;
   keyword: string;
@@ -67,6 +77,8 @@ export interface ArticleInput {
   search_language: string;
   article_language: string;
   output_format: "markdown" | "html";
+  /** Illustrative images inserted into article sections (0–3). No featured/hero image. */
+  inline_image_count?: number;
   sitemap_url?: string | null;
 }
 

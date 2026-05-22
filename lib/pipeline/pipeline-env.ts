@@ -1,6 +1,7 @@
 import {
-  DEFAULT_OPENAI_LLM_MODEL,
   normalizeLlmProvider,
+  resolveOpenAiImageModel,
+  resolveOpenAiTextModels,
   type PipelineLlmEnv,
 } from "./llm-provider";
 
@@ -17,13 +18,15 @@ export function getPipelineRuntimeEnv(): PipelineRuntimeEnv {
     process.env.google_gemini_api;
   const openaiKey = process.env.OPENAI_API_KEY?.trim() ?? "";
   const llmProvider = normalizeLlmProvider(process.env.LLM_PROVIDER);
+  const { strongModel, fastModel } = resolveOpenAiTextModels();
 
   return {
     LLM_PROVIDER: llmProvider,
     GEMINI_API_KEY: geminiKey,
     OPENAI_API_KEY: openaiKey,
-    OPENAI_LLM_MODEL:
-      process.env.OPENAI_LLM_MODEL?.trim() || DEFAULT_OPENAI_LLM_MODEL,
+    OPENAI_STRONG_MODEL: strongModel,
+    OPENAI_FAST_MODEL: fastModel,
+    OPENAI_IMAGE_MODEL: resolveOpenAiImageModel(),
     SERPAPI_KEY: process.env.SERPAPI_KEY,
     CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
     CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,

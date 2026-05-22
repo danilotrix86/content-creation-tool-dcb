@@ -358,13 +358,15 @@ export function createGeminiClient(apiKey: string): PipelineLlm {
 
     async pickSectionsForImages(
       sections: Section[],
-      mainTopic: string
+      mainTopic: string,
+      count: number
     ): Promise<number[]> {
+      if (count <= 0) return [];
       const titles = sections.map((s) => s.title);
       const response = await withGeminiRetry("pickSectionsForImages", () =>
         ai.models.generateContent({
           model: GEMINI_MODEL,
-          contents: pickSectionsForImagesPrompt(titles, mainTopic),
+          contents: pickSectionsForImagesPrompt(titles, mainTopic, count),
           config: {
             temperature: 0.2,
             responseMimeType: "application/json",
@@ -376,7 +378,7 @@ export function createGeminiClient(apiKey: string): PipelineLlm {
       const indices = (data.section_indices ?? []).filter(
         (i: number) => i >= 0 && i < sections.length
       );
-      return indices.slice(0, 2);
+      return indices.slice(0, count);
     },
   };
 }

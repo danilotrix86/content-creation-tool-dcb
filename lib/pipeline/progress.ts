@@ -8,7 +8,6 @@ export type PipelineProgressEvent =
   | { type: "create_outline" }
   | { type: "internal_links" }
   | { type: "write_sections"; batch: number; total: number }
-  | { type: "featured_image" }
   | { type: "inline_images" }
   | { type: "meta_tags" }
   | { type: "save" };
@@ -47,8 +46,6 @@ export function formatUserProgress(event: PipelineProgressEvent): string {
       return "Selecting internal links…";
     case "write_sections":
       return `Writing sections (${event.batch}/${event.total})…`;
-    case "featured_image":
-      return "Generating featured image…";
     case "inline_images":
       return "Generating inline images…";
     case "meta_tags":

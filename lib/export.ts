@@ -22,14 +22,9 @@ export function getPrintableHtml(
   metaTitle: string,
   metaDescription: string,
   readingTime: number,
-  isMarkdown = true,
-  featuredImageDataUrl?: string | null
+  isMarkdown = true
 ): string {
   const htmlContent = isMarkdown ? md.render(content) : content;
-  const featuredBlock =
-    featuredImageDataUrl && featuredImageDataUrl.startsWith("data:image/")
-      ? `<figure class="featured" style="margin:1rem 0;"><img src="${featuredImageDataUrl}" alt="" style="max-width:100%;height:auto;" /></figure>`
-      : "";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -52,7 +47,6 @@ export function getPrintableHtml(
 <body>
   <article>
     <h1>${title}</h1>
-    ${featuredBlock}
     <p class="meta">${readingTime} min read</p>
     <div class="content">${htmlContent}</div>
   </article>

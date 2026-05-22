@@ -64,5 +64,9 @@ export type PipelineLlm = {
     articleLanguage: string
   ): Promise<string>;
 
-  pickSectionsForImages(sections: Section[], mainTopic: string): Promise<number[]>;
+  pickSectionsForImages(
+    sections: Section[],
+    mainTopic: string,
+    count: number
+  ): Promise<number[]>;
 };

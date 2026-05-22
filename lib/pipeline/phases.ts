@@ -1,4 +1,5 @@
 import type { ArticleInput, ArticleResult } from "./types";
+import { resolveInlineImageCount } from "./types";
 import {
   COMPETITOR_BUNDLE_LOG_MAX_CHARS,
   pipelineDetail,
@@ -13,7 +14,7 @@ import {
   formatScrapedForPrompt,
 } from "./cloudflare";
 import { fetchSitemapUrls, selectRelevantUrls } from "./sitemap";
-import { createPipelineLlm } from "./llm-provider";
+import { createPipelineLlm, pipelineModelLabel } from "./llm-provider";
 import { getAvailableLinks } from "./internal-links";
 import { createOpenAIImageClient } from "./openai-images";
 import MarkdownIt from "markdown-it";
@@ -95,7 +96,8 @@ export async function runJobStep(
   env: PipelineRuntimeEnv
 ): Promise<StepResult> {
   const llm = createPipelineLlm(env);
-  const openai = createOpenAIImageClient(env.OPENAI_API_KEY);
+  const openai = createOpenAIImageClient(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL);
+  const inlineImageCount = resolveInlineImageCount(input.inline_image_count);
   const progress: PipelineProgressEvent[] = [];
   const nextState: PipelineJobState = { ...state };
 
@@ -230,6 +232,10 @@ export async function runJobStep(
           scraped,
           { maxDisplayChars: COMPETITOR_BUNDLE_LOG_MAX_CHARS }
         );
+        pipelineDetail("Topic insights", {
+          model: pipelineModelLabel(env, "fast"),
+          operation: "generateTopicInsights",
+        });
         nextState.topicInsights = await llm.generateTopicInsights(
           scraped,
           input.main_topic,
@@ -253,6 +259,10 @@ export async function runJobStep(
 
     case "plan_strategy": {
       progress.push({ type: "analyze_strategy" });
+      pipelineDetail("Article strategy", {
+        model: pipelineModelLabel(env, "fast"),
+        operation: "deriveArticleStrategy",
+      });
       nextState.strategy = await llm.deriveArticleStrategy(
         input.main_topic,
         input.keyword,
@@ -271,6 +281,10 @@ export async function runJobStep(
 
     case "plan_outline": {
       progress.push({ type: "create_outline" });
+      pipelineDetail("Outline", {
+        model: pipelineModelLabel(env, "fast"),
+        operation: "generateOutline",
+      });
       nextState.outline = await llm.generateOutline(
         input.main_topic,
         input.keyword,
@@ -333,6 +347,13 @@ export async function runJobStep(
         ? accumulated.slice(-PREVIOUS_CONTENT_MAX_CHARS)
         : "";
 
+      pipelineDetail("Writing sections batch", {
+        model: pipelineModelLabel(env, "strong"),
+        operation: "generateSectionsMarkdown",
+        batch: batchIndex + 1,
+        total: totalBatches,
+      });
+
       const md = await llm.generateSectionsMarkdown(
         batch,
         remaining,
@@ -353,9 +374,11 @@ export async function runJobStep(
       nextState.writeBatchIndex = batchIndex + 1;
 
       if (batchIndex + 1 >= totalBatches) {
+        const nextPhase =
+          inlineImageCount === 0 ? "finalize" : "image_pick_sections";
         return {
           progress,
-          nextPhase: "image_featured",
+          nextPhase,
           state: nextState,
           done: false,
         };
@@ -369,34 +392,18 @@ export async function runJobStep(
       };
     }
 
-    case "image_featured": {
-      progress.push({ type: "featured_image" });
-      const outline = nextState.outline!;
-      nextState.featuredImage = await openai.generateFeaturedImage(
-        outline.slug,
-        outline.title,
-        input.main_topic
-      );
-      nextState.featuredAlt = await llm.generateAltText(
-        outline.title,
-        input.keyword,
-        outline.lsi_keywords,
-        input.article_language
-      );
-      return {
-        progress,
-        nextPhase: "image_pick_sections",
-        state: nextState,
-        done: false,
-      };
-    }
-
     case "image_pick_sections": {
       progress.push({ type: "inline_images" });
       const outline = nextState.outline!;
+      pipelineDetail("Pick sections for inline images", {
+        model: pipelineModelLabel(env, "fast"),
+        operation: "pickSectionsForImages",
+        inline_image_count: inlineImageCount,
+      });
       nextState.imageSectionIndices = await llm.pickSectionsForImages(
         outline.sections,
-        input.main_topic
+        input.main_topic,
+        inlineImageCount
       );
       nextState.inlineImages = [];
       nextState.inlineImageIndex = 0;
@@ -449,6 +456,12 @@ export async function runJobStep(
         outline.lsi_keywords,
         input.article_language
       );
+      pipelineDetail("Inline image alt text", {
+        model: pipelineModelLabel(env, "fast"),
+        operation: "generateAltText",
+        sectionTitle: section.title,
+        alt,
+      });
       inlineImages.push({
         url: inlineUrl,
         alt,
@@ -484,6 +497,10 @@ export async function runJobStep(
       const contentMd = nextState.contentMd ?? "";
       const categoryName = nextState.categoryName ?? "General";
 
+      pipelineDetail("SEO meta", {
+        model: pipelineModelLabel(env, "fast"),
+        operation: "generateMeta",
+      });
       nextState.meta = await llm.generateMeta(
         outline.title,
         outline.excerpt,
@@ -512,7 +529,7 @@ export async function runJobStep(
         content_markdown: input.output_format === "html" ? contentMd : undefined,
         meta_title: nextState.meta.meta_title,
         meta_description: nextState.meta.meta_description,
-        featured_image: nextState.featuredImage!,
+        featured_image: "",
         inline_images: inlineForResult,
         word_count: wordCount,
         reading_time: readingTime,

@@ -63,15 +63,6 @@ export async function buildArticleBundleZip(result: ArticleResult): Promise<Blob
     header += `*${result.excerpt.trim()}*\n\n`;
   }
 
-  if (result.featured_image?.startsWith("data:image/")) {
-    const fm = result.featured_image.match(/^data:image\/(\w+);base64,/);
-    const ext = fm ? mimeSubtypeToFileExt(fm[1]) : "png";
-    const zipPath = `images/featured.${ext}`;
-    zip.file(zipPath, dataUrlToBytes(result.featured_image));
-    const alt = result.title.replace(/[\[\]]/g, "");
-    header += `![${alt}](${zipPath})\n\n`;
-  }
-
   zip.file(`${base}.md`, header + bodyRewritten);
 
   for (const { zipPath, dataUrl } of inlineImages) {
@@ -91,7 +82,6 @@ export async function buildArticleBundleZip(result: ArticleResult): Promise<Blob
         category_name: result.category_name,
         files: {
           article: `${base}.md`,
-          featured: result.featured_image ? "images/featured.*" : null,
           inline_count: inlineImages.length,
         },
       },

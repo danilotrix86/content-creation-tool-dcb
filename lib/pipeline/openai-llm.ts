@@ -99,9 +99,11 @@ function sleep(ms: number): Promise<void> {
 
 async function withOpenAiRetry<T>(
   label: string,
+  model: string,
   fn: () => Promise<T>,
   options?: { onGiveUp?: () => T }
 ): Promise<T> {
+  const logLabel = `${label} (${model})`;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       return await fn();
@@ -111,25 +113,25 @@ async function withOpenAiRetry<T>(
       if (willRetry) {
         const wait = RETRY_BASE_MS * 2 ** (attempt - 1);
         console.warn(
-          `[OpenAI LLM] ${label}: attempt ${attempt}/${MAX_ATTEMPTS} failed (${formatOpenAiErrorForLog(e)}); retry in ${wait}ms`
+          `[OpenAI LLM] ${logLabel}: attempt ${attempt}/${MAX_ATTEMPTS} failed (${formatOpenAiErrorForLog(e)}); retry in ${wait}ms`
         );
         await sleep(wait);
         continue;
       }
       if (options?.onGiveUp) {
         console.warn(
-          `[OpenAI LLM] ${label}: giving up after ${attempt} attempt(s) (${formatOpenAiErrorForLog(e)}); using fallback`
+          `[OpenAI LLM] ${logLabel}: giving up after ${attempt} attempt(s) (${formatOpenAiErrorForLog(e)}); using fallback`
         );
         return options.onGiveUp();
       }
       console.warn(
-        `[OpenAI LLM] ${label}: failed after ${attempt} attempt(s): ${formatOpenAiErrorForLog(e)}`
+        `[OpenAI LLM] ${logLabel}: failed after ${attempt} attempt(s): ${formatOpenAiErrorForLog(e)}`
       );
       throw e;
     }
   }
   throw new Error(
-    `[OpenAI LLM] ${label}: retry loop exhausted (MAX_ATTEMPTS=${MAX_ATTEMPTS})`
+    `[OpenAI LLM] ${logLabel}: retry loop exhausted (MAX_ATTEMPTS=${MAX_ATTEMPTS})`
   );
 }
 
@@ -178,13 +180,23 @@ function isTemperatureUnsupportedError(err: unknown): boolean {
   );
 }
 
+export type OpenAiLlmModels = {
+  strongModel: string;
+  fastModel: string;
+};
+
 /**
- * Chat Completions–based pipeline LLM. Set model via env `OPENAI_LLM_MODEL` (e.g. gpt-4.1).
+ * Chat Completions–based pipeline LLM with strong/fast model routing.
  */
-export function createOpenAILlmClient(apiKey: string, model: string): PipelineLlm {
+export function createOpenAILlmClient(
+  apiKey: string,
+  models: OpenAiLlmModels
+): PipelineLlm {
   const client = new OpenAI({ apiKey });
+  const { strongModel, fastModel } = models;
 
   async function completion(
+    model: string,
     userPrompt: string,
     opts: { json?: boolean } = {}
   ): Promise<string> {
@@ -215,7 +227,7 @@ export function createOpenAILlmClient(apiKey: string, model: string): PipelineLl
     } catch (e) {
       if (hasCustomTemperature && isTemperatureUnsupportedError(e)) {
         console.warn(
-          `[OpenAI LLM] Retrying without custom temperature (model only supports default sampling).`
+          `[OpenAI LLM] Retrying ${model} without custom temperature (model only supports default sampling).`
         );
         const response = await run({});
         return response.choices[0]?.message?.content?.trim() ?? "";
@@ -231,8 +243,9 @@ export function createOpenAILlmClient(apiKey: string, model: string): PipelineLl
       keyword: string,
       articleLanguage: string
     ) {
-      const text = await withOpenAiRetry("generateTopicInsights", () =>
+      const text = await withOpenAiRetry("generateTopicInsights", fastModel, () =>
         completion(
+          fastModel,
           topicInsightsPrompt(scrapedContent, mainTopic, keyword, articleLanguage),
           { json: true }
         )
@@ -250,8 +263,9 @@ export function createOpenAILlmClient(apiKey: string, model: string): PipelineLl
     ): Promise<ArticleStrategy> {
       const insightsText = formatTopicInsightsForPrompt(topicInsights);
       try {
-        const text = await withOpenAiRetry("deriveArticleStrategy", () =>
+        const text = await withOpenAiRetry("deriveArticleStrategy", fastModel, () =>
           completion(
+            fastModel,
             articleStrategyPrompt(
               mainTopic,
               keyword,
@@ -279,8 +293,9 @@ export function createOpenAILlmClient(apiKey: string, model: string): PipelineLl
       strategy: ArticleStrategy
     ): Promise<ArticleOutline> {
       const insightsText = formatTopicInsightsForPrompt(topicInsights);
-      const text = await withOpenAiRetry("generateOutline", () =>
+      const text = await withOpenAiRetry("generateOutline", fastModel, () =>
         completion(
+          fastModel,
           outlinePrompt(
             mainTopic,
             keyword,
@@ -341,8 +356,10 @@ export function createOpenAILlmClient(apiKey: string, model: string): PipelineLl
         : "";
       return await withOpenAiRetry(
         `generateSectionsMarkdown (${batch.map((s) => s.title).join(" · ")})`,
+        strongModel,
         () =>
           completion(
+            strongModel,
             sectionsPrompt(
               sectionsText,
               contextText,
@@ -367,8 +384,8 @@ export function createOpenAILlmClient(apiKey: string, model: string): PipelineLl
       keyword: string,
       articleLanguage: string
     ): Promise<{ meta_title: string; meta_description: string }> {
-      const text = await withOpenAiRetry("generateMeta", () =>
-        completion(metaPrompt(title, excerpt, keyword, articleLanguage), {
+      const text = await withOpenAiRetry("generateMeta", fastModel, () =>
+        completion(fastModel, metaPrompt(title, excerpt, keyword, articleLanguage), {
           json: true,
         })
       );
@@ -381,8 +398,9 @@ export function createOpenAILlmClient(apiKey: string, model: string): PipelineLl
       lsiKeywords: string[] | null,
       articleLanguage: string
     ): Promise<string> {
-      const text = await withOpenAiRetry("generateAltText", () =>
+      const text = await withOpenAiRetry("generateAltText", fastModel, () =>
         completion(
+          fastModel,
           altTextPrompt(title, keyword, lsiKeywords, articleLanguage)
         )
       );
@@ -391,19 +409,23 @@ export function createOpenAILlmClient(apiKey: string, model: string): PipelineLl
 
     async pickSectionsForImages(
       sections: Section[],
-      mainTopic: string
+      mainTopic: string,
+      count: number
     ): Promise<number[]> {
+      if (count <= 0) return [];
       const titles = sections.map((s) => s.title);
-      const text = await withOpenAiRetry("pickSectionsForImages", () =>
-        completion(pickSectionsForImagesPrompt(titles, mainTopic), {
-          json: true,
-        })
+      const text = await withOpenAiRetry("pickSectionsForImages", fastModel, () =>
+        completion(
+          fastModel,
+          pickSectionsForImagesPrompt(titles, mainTopic, count),
+          { json: true }
+        )
       );
       const data = JSON.parse(cleanJson(text));
       const indices = (data.section_indices ?? []).filter(
         (i: number) => i >= 0 && i < sections.length
       );
-      return indices.slice(0, 2);
+      return indices.slice(0, count);
     },
   };
 }

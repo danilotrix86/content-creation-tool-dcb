@@ -59,6 +59,7 @@ export default function Home() {
           search_language: data.search_language,
           article_language: data.article_language,
           output_format: data.output_format,
+          inline_image_count: data.inline_image_count,
           sitemap_url: data.sitemap_url || null,
         },
         handleProgress,

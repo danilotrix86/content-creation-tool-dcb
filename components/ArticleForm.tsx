@@ -6,6 +6,10 @@ import {
   ARTICLE_TYPE_OPTIONS,
   type ArticleType,
 } from "@/lib/pipeline/types";
+import {
+  getContentBriefPlaceholder,
+  usesPolishCasinoReviewBrief,
+} from "@/lib/content-brief-templates";
 
 /** Google `hl` (interface language) — SerpAPI-compatible where possible. */
 const LANGUAGES_RAW: { code: string; label: string }[] = [
@@ -161,6 +165,7 @@ export interface FormData {
   search_language: string;
   article_language: string;
   output_format: "markdown" | "html";
+  inline_image_count: 0 | 1 | 2 | 3;
   sitemap_url: string;
 }
 
@@ -174,6 +179,7 @@ const initialForm: FormData = {
   search_language: "en",
   article_language: "en",
   output_format: "markdown",
+  inline_image_count: 2,
   sitemap_url: "",
 };
 
@@ -213,6 +219,15 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
     "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100 transition-all";
 
   const labelClass = "mb-1.5 block text-sm font-medium text-gray-700";
+
+  const contentBriefPlaceholder = getContentBriefPlaceholder(
+    form.article_language,
+    form.article_type
+  );
+  const showPolishCasinoReviewBriefHint = usesPolishCasinoReviewBrief(
+    form.article_language,
+    form.article_type
+  );
 
   const Tip = ({ children }: { children: React.ReactNode }) => (
     <div className="mb-2 flex gap-2 rounded-lg bg-sky-50 px-3 py-2 text-sm text-sky-800">
@@ -313,15 +328,20 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
           Editorial direction for the draft: target audience, tone, angle, must-cover ideas, CTAs,
           or things to avoid. Passed into outline and article generation.
         </Tip>
+        {showPolishCasinoReviewBriefHint && !form.content_brief.trim() && (
+          <p className="mb-2 text-xs text-violet-700">
+            Polish casino review template shown below — paste or edit it before generating.
+          </p>
+        )}
         <textarea
           id="content-brief"
-          rows={5}
+          rows={showPolishCasinoReviewBriefHint ? 14 : 5}
           value={form.content_brief}
           onChange={(e) =>
             setForm((f) => ({ ...f, content_brief: e.target.value }))
           }
-          placeholder="e.g. Write for players comparing licensed online casinos; cover bonuses, payout speed, and game variety; include a pros/cons table; end with responsible gambling note."
-          className={`${inputClass} min-h-[120px] resize-y`}
+          placeholder={contentBriefPlaceholder}
+          className={`${inputClass} ${showPolishCasinoReviewBriefHint ? "min-h-[320px]" : "min-h-[120px]"} resize-y`}
           disabled={isGenerating}
           aria-labelledby="section-content-brief"
         />
@@ -379,7 +399,7 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-5">
         <div>
           <label className={labelClass}>Search Country</label>
           <select
@@ -447,6 +467,28 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
             <option value="markdown">Markdown</option>
             <option value="html">HTML</option>
           </select>
+        </div>
+        <div>
+          <label className={labelClass}>Inline Images</label>
+          <select
+            value={form.inline_image_count}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                inline_image_count: Number(e.target.value) as 0 | 1 | 2 | 3,
+              }))
+            }
+            className={inputClass}
+            disabled={isGenerating}
+          >
+            <option value={0}>None</option>
+            <option value={1}>1</option>
+            <option value={2}>2</option>
+            <option value={3}>3</option>
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            Illustrative images in article sections. No hero/featured image.
+          </p>
         </div>
       </div>
 

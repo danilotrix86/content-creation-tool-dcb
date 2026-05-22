@@ -14,7 +14,6 @@ export type JobPhase =
   | "plan_outline"
   | "plan_internal_links"
   | "write_batch"
-  | "image_featured"
   | "image_pick_sections"
   | "image_inline"
   | "finalize"
@@ -34,8 +33,6 @@ export interface PipelineJobState {
   internalLinks?: InternalLink[];
   contentMd?: string;
   writeBatchIndex?: number;
-  featuredImage?: string;
-  featuredAlt?: string;
   imageSectionIndices?: number[];
   inlineImages?: { url: string; alt: string; sectionTitle: string }[];
   inlineImageIndex?: number;
@@ -65,7 +62,6 @@ export const JOB_PHASE_ORDER: JobPhase[] = [
   "plan_outline",
   "plan_internal_links",
   "write_batch",
-  "image_featured",
   "image_pick_sections",
   "image_inline",
   "finalize",

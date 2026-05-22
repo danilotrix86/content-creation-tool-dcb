@@ -6,6 +6,7 @@ import type {
   InternalLink,
   TopicInsights,
 } from "./types";
+import { resolveInlineImageCount } from "./types";
 import { formatTopicInsightsForPrompt } from "./article-strategy";
 import {
   COMPETITOR_BUNDLE_LOG_MAX_CHARS,
@@ -20,7 +21,11 @@ import {
   formatScrapedForPrompt,
 } from "./cloudflare";
 import { fetchSitemapUrls, selectRelevantUrls } from "./sitemap";
-import { createPipelineLlm, type PipelineLlmEnv } from "./llm-provider";
+import {
+  createPipelineLlm,
+  pipelineModelLabel,
+  type PipelineLlmEnv,
+} from "./llm-provider";
 import type { PipelineLlm } from "./llm-types";
 import { getAvailableLinks } from "./internal-links";
 import { createOpenAIImageClient } from "./openai-images";
@@ -57,6 +62,7 @@ const PREVIOUS_CONTENT_MAX_CHARS = 5000;
 
 async function generateAllSectionsMarkdown(
   llm: PipelineLlm,
+  env: PipelineLlmEnv,
   outline: ArticleOutline,
   mainTopic: string,
   keyword: string,
@@ -89,6 +95,13 @@ async function generateAllSectionsMarkdown(
       ? accumulated.slice(-PREVIOUS_CONTENT_MAX_CHARS)
       : "";
 
+    pipelineDetail("Writing sections batch", {
+      model: pipelineModelLabel(env, "strong"),
+      operation: "generateSectionsMarkdown",
+      batch: batchIndex,
+      total: totalBatches,
+    });
+
     const md = await llm.generateSectionsMarkdown(
       batch,
       remaining,
@@ -117,6 +130,8 @@ export async function runPipeline(
   },
   onProgress?: (event: PipelineProgressEvent) => void
 ): Promise<ArticleResult> {
+  const inlineImageCount = resolveInlineImageCount(input.inline_image_count);
+
   onProgress?.({ type: "start" });
   pipelineDetail("Run started", {
     main_topic: input.main_topic,
@@ -124,18 +139,22 @@ export async function runPipeline(
     article_type: input.article_type,
     article_language: input.article_language,
     output_format: input.output_format,
+    inline_image_count: inlineImageCount,
     search_keywords: input.search_keywords,
     search_country: input.search_country,
     search_language: input.search_language,
     sitemap_url: input.sitemap_url,
     content_brief: truncateForLog(input.content_brief, 400),
     llm_provider: env.LLM_PROVIDER,
-    openai_llm_model:
-      env.LLM_PROVIDER === "openai" ? env.OPENAI_LLM_MODEL : undefined,
+    openai_strong_model:
+      env.LLM_PROVIDER === "openai" ? env.OPENAI_STRONG_MODEL : undefined,
+    openai_fast_model:
+      env.LLM_PROVIDER === "openai" ? env.OPENAI_FAST_MODEL : undefined,
+    openai_image_model: env.OPENAI_IMAGE_MODEL,
   });
 
   const llm = createPipelineLlm(env);
-  const openai = createOpenAIImageClient(env.OPENAI_API_KEY);
+  const openai = createOpenAIImageClient(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL);
 
   /** Category classification removed from pipeline (avoids extra Gemini round-trip). */
   const categoryName = "General";
@@ -203,6 +222,10 @@ export async function runPipeline(
         { maxDisplayChars: COMPETITOR_BUNDLE_LOG_MAX_CHARS }
       );
       onProgress?.({ type: "analyze_competitors" });
+      pipelineDetail("Topic insights", {
+        model: pipelineModelLabel(env, "fast"),
+        operation: "generateTopicInsights",
+      });
       topicInsights = await llm.generateTopicInsights(
         scraped,
         input.main_topic,
@@ -240,6 +263,10 @@ export async function runPipeline(
   }
 
   onProgress?.({ type: "analyze_strategy" });
+  pipelineDetail("Article strategy", {
+    model: pipelineModelLabel(env, "fast"),
+    operation: "deriveArticleStrategy",
+  });
   const strategy: ArticleStrategy = await llm.deriveArticleStrategy(
     input.main_topic,
     input.keyword,
@@ -265,6 +292,10 @@ export async function runPipeline(
   } else {
     pipelineDetail("Outline step: no competitor analysis (topicInsights null/empty)");
   }
+  pipelineDetail("Outline", {
+    model: pipelineModelLabel(env, "fast"),
+    operation: "generateOutline",
+  });
   const outline = await llm.generateOutline(
     input.main_topic,
     input.keyword,
@@ -304,6 +335,7 @@ export async function runPipeline(
 
   let contentMd = await generateAllSectionsMarkdown(
     llm,
+    env,
     outline,
     input.main_topic,
     input.keyword,
@@ -317,64 +349,63 @@ export async function runPipeline(
     previewStart: truncateForLog(contentMd, 400),
   });
 
-  onProgress?.({ type: "featured_image" });
-  const featuredImage = await openai.generateFeaturedImage(
-    outline.slug,
-    outline.title,
-    input.main_topic
-  );
-  pipelineDetail("Featured image generated (OpenAI image)", {
-    slug: outline.slug,
-    title: outline.title,
-    mainTopic: input.main_topic,
-    dataUrlChars: featuredImage.length,
-  });
-
-  const featuredAlt = await llm.generateAltText(
-    outline.title,
-    input.keyword,
-    outline.lsi_keywords,
-    input.article_language
-  );
-  pipelineDetail("Featured image alt text (LLM)", { alt: featuredAlt });
-
-  onProgress?.({ type: "inline_images" });
-  const imageIndices = await llm.pickSectionsForImages(
-    outline.sections,
-    input.main_topic
-  );
-  pipelineDetail("Inline images: sections chosen", {
-    indices: imageIndices,
-    sections: imageIndices.map((i) => outline.sections[i]?.title ?? String(i)),
-  });
   const inlineImages: { url: string; alt: string }[] = [];
-  for (let i = 0; i < imageIndices.length; i++) {
-    const sectionIdx = imageIndices[i];
-    const section = outline.sections[sectionIdx];
-    const inlineUrl = await openai.generateInlineImage(
-      outline.slug,
-      section.title,
-      input.main_topic,
-      i + 1
-    );
-    pipelineDetail("Inline image generated", {
-      sectionIndex: sectionIdx,
-      sectionTitle: section.title,
-      imageIndex: i + 1,
-      dataUrlChars: inlineUrl.length,
+  if (inlineImageCount > 0) {
+    onProgress?.({ type: "inline_images" });
+    pipelineDetail("Pick sections for inline images", {
+      model: pipelineModelLabel(env, "fast"),
+      operation: "pickSectionsForImages",
+      inline_image_count: inlineImageCount,
     });
-    const alt = await llm.generateAltText(
-      section.title,
-      input.keyword,
-      outline.lsi_keywords,
-      input.article_language
+    const imageIndices = await llm.pickSectionsForImages(
+      outline.sections,
+      input.main_topic,
+      inlineImageCount
     );
-    pipelineDetail("Inline image alt text", { sectionTitle: section.title, alt });
-    inlineImages.push({ url: inlineUrl, alt });
-    contentMd = injectInlineImage(contentMd, section.title, inlineUrl, alt);
+    pipelineDetail("Inline images: sections chosen", {
+      indices: imageIndices,
+      sections: imageIndices.map((i) => outline.sections[i]?.title ?? String(i)),
+    });
+    for (let i = 0; i < imageIndices.length; i++) {
+      const sectionIdx = imageIndices[i];
+      const section = outline.sections[sectionIdx];
+      const inlineUrl = await openai.generateInlineImage(
+        outline.slug,
+        section.title,
+        input.main_topic,
+        i + 1
+      );
+      pipelineDetail("Inline image generated", {
+        model: env.OPENAI_IMAGE_MODEL,
+        sectionIndex: sectionIdx,
+        sectionTitle: section.title,
+        imageIndex: i + 1,
+        dataUrlChars: inlineUrl.length,
+      });
+      pipelineDetail("Inline image alt text", {
+        model: pipelineModelLabel(env, "fast"),
+        operation: "generateAltText",
+        sectionTitle: section.title,
+      });
+      const alt = await llm.generateAltText(
+        section.title,
+        input.keyword,
+        outline.lsi_keywords,
+        input.article_language
+      );
+      pipelineDetail("Inline image alt text", { sectionTitle: section.title, alt });
+      inlineImages.push({ url: inlineUrl, alt });
+      contentMd = injectInlineImage(contentMd, section.title, inlineUrl, alt);
+    }
+  } else {
+    pipelineDetail("Inline images skipped", { inline_image_count: 0 });
   }
 
   onProgress?.({ type: "meta_tags" });
+  pipelineDetail("SEO meta", {
+    model: pipelineModelLabel(env, "fast"),
+    operation: "generateMeta",
+  });
   const meta = await llm.generateMeta(
     outline.title,
     outline.excerpt,
@@ -416,7 +447,7 @@ export async function runPipeline(
     content_markdown: input.output_format === "html" ? contentMd : undefined,
     meta_title: meta.meta_title,
     meta_description: meta.meta_description,
-    featured_image: featuredImage,
+    featured_image: "",
     inline_images: inlineImages,
     word_count: wordCount,
     reading_time: readingTime,

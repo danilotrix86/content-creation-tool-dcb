@@ -39,8 +39,7 @@ export function ArticlePreview({ result, outputFormat }: ArticlePreviewProps) {
       result.meta_title,
       result.meta_description,
       result.reading_time,
-      isMarkdown,
-      result.featured_image
+      isMarkdown
     );
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
@@ -102,21 +101,6 @@ export function ArticlePreview({ result, outputFormat }: ArticlePreviewProps) {
           </motion.button>
         </div>
       </div>
-
-      {result.featured_image && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="mb-8 overflow-hidden rounded-xl"
-        >
-          <img
-            src={result.featured_image}
-            alt={result.title}
-            className="h-auto w-full object-cover"
-          />
-        </motion.div>
-      )}
 
       <div className="prose-article max-w-none">
         {outputFormat === "markdown" ? (

@@ -336,12 +336,48 @@ function sectionsTypeWritingRules(
 - Scannable: lead with the key point, then 2-3 supporting paragraphs
 - Numbered or clearly labeled items; uniform structure across items`,
     casino_review: `
-- Neutral reviewer tone — help players compare licensed options; avoid exaggerated claims or guaranteed-win language
-- Each ## section: 2-4 paragraphs; use comparison tables for bonuses, payment methods, game counts, or limits where useful
-- Cover licensing, wagering requirements, payout speed, game variety, and mobile experience when relevant to the section
-- Include pros/cons or trade-off framing in dedicated sections; end sections with a clear takeaway for the reader
-- Mention responsible gambling where appropriate (limits, self-exclusion, age restrictions) without moralizing
-- Do not invent specific bonus amounts, RTP figures, or license numbers unless provided in the content brief or competitor analysis`,
+You are writing a casino review for a real audience comparing licensed gambling options.
+
+TONE
+Write as a knowledgeable, impartial reviewer — not as a casino promoter and not as a 
+compliance officer. Be direct and useful.
+
+STRUCTURE RULES
+- Follow the section order in the user prompt exactly
+- Each section: 2–3 focused paragraphs maximum, or a table where specified
+- Do not add preamble sections, transition summaries, or meta-commentary about the review itself
+- Do not repeat warnings, caveats, or advice across multiple sections
+
+CONTENT RULES
+- Use only facts provided in the content brief
+- If a specific value (bonus amount, RTP, licence number, withdrawal limit) is not in the 
+  brief, state it is unconfirmed once and move on — do not build a section around the absence
+- Do not invent operator names, licence numbers, bonus figures, or payout speeds
+- Wagering requirements must include a worked numerical example when mentioned
+- Comparison tables must use realistic market benchmarks if competitor data is not provided
+  (e.g. industry-typical wagering of 30–40x, withdrawal times of 0–3 days for e-wallets)
+
+WHAT TO INCLUDE
+- Concrete pros and cons that are specific to this casino, not generic casino advice
+- At least one practical observation per major section (bonus terms visibility, cashier 
+  transparency, KYC friction, mobile usability) — describe what was found, not what should exist
+- One red flag or one specific trust signal in the licence/trust section
+- A responsible gambling mention in the final verdict, not repeated throughout
+
+WHAT TO AVOID
+- "Check the terms before depositing" repeated in every section
+- Generic descriptions of how a good casino should behave instead of evaluating this one
+- Hype language: best casino, amazing offer, unbeatable bonus
+- Implied guaranteed wins or financial motivation to gamble
+- Padding sentences that explain why a topic matters rather than assessing it
+- FAQ questions that duplicate information already in the body
+
+CTA STANDARD
+Use responsible CTAs only:
+  Yes:  "Check current bonus terms before registering"
+        "Verify availability in your country before depositing"
+  No:   "Sign up now", "Claim your bonus today", "Don't miss this offer"
+  `,
   };
 
   return intentNote + byType[articleType];
@@ -513,11 +549,13 @@ ${langInstr}`;
 
 export function pickSectionsForImagesPrompt(
   sectionsTitles: string[],
-  mainTopic: string
+  mainTopic: string,
+  count: number
 ): string {
   const sectionsList = sectionsTitles
     .map((t, i) => `  ${i}. ${t}`)
     .join("\n");
+  const countLabel = count === 1 ? "1 section" : `${count} sections`;
   return `
 You are an expert in content strategy for educational blogs.
 
@@ -526,7 +564,7 @@ Article topic: ${mainTopic}
 Article sections:
 ${sectionsList}
 
-Select exactly 2 sections that would benefit most from an illustrative image
+Select exactly ${countLabel} that would benefit most from an illustrative image
 (diagram, graph, visual scheme).
 
 Selection criteria:
@@ -536,6 +574,6 @@ Selection criteria:
 - Avoid sections that are simple definition lists
 
 Respond EXCLUSIVELY with valid JSON:
-{"section_indices": [index1, index2]}
+{"section_indices": [${Array.from({ length: count }, (_, i) => `index${i + 1}`).join(", ")}]}
 `;
 }
