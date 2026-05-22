@@ -2,12 +2,24 @@ import path from "node:path";
 
 import type { NextConfig } from "next";
 
+const isWindows = process.platform === "win32";
+
 const nextConfig: NextConfig = {
-  experimental: {
-    // Use Windows trust store so HTTPS to fonts.googleapis.com works with AV/MITM setups.
-    turbopackUseSystemTlsCerts: true,
-  },
-  // Repo root also has package-lock.json; pin Turbopack to this app.
+  ...(isWindows
+    ? {
+        experimental: {
+          // Dev workaround for Windows AV/HTTPS inspection during Turbopack dev builds.
+          turbopackUseSystemTlsCerts: true,
+        },
+      }
+    : {}),
+  serverExternalPackages: [
+    "@google/genai",
+    "openai",
+    "undici",
+    "@supabase/supabase-js",
+  ],
+  // Pin Turbopack root when the monorepo has other package manifests above web/.
   turbopack: {
     root: path.join(__dirname),
   },

@@ -2,7 +2,8 @@
 .cursor/
 
 # Root stub lockfile
-package-lock.json
+/package-lock.json
+!web/package-lock.json
 
 # Web app
 web/node_modules/
@@ -28,3 +29,4 @@ web/.env*
 web/.vercel
 web/*.tsbuildinfo
 web/next-env.d.ts
+web/.npmrc
