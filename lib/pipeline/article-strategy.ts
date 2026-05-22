@@ -28,6 +28,7 @@ export const ARTICLE_TYPE_SECTION_DEFAULTS: Record<
   commercial: { min: 8, max: 12 },
   transactional: { min: 6, max: 10 },
   listicle: { min: 10, max: 15 },
+  casino_review: { min: 8, max: 14 },
 };
 
 function normalizeStringArray(value: unknown): string[] {
@@ -206,6 +207,7 @@ export function articleTypeLabel(articleType: ArticleType): string {
     commercial: "Commercial investigation",
     transactional: "Transactional / product",
     listicle: "Listicle",
+    casino_review: "Casino review",
   };
   return labels[articleType];
 }

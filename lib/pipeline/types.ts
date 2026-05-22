@@ -8,7 +8,8 @@ export type ArticleType =
   | "how_to"
   | "commercial"
   | "transactional"
-  | "listicle";
+  | "listicle"
+  | "casino_review";
 
 export type KeywordIntent =
   | "informational"
@@ -123,6 +124,11 @@ export const ARTICLE_TYPE_OPTIONS: {
     label: "Listicle",
     description: "Numbered tips, tools, or items",
   },
+  {
+    value: "casino_review",
+    label: "Casino review",
+    description: "Licensed casino evaluations with bonuses, games, payouts, and verdict",
+  },
 ];
 
 export function normalizeArticleType(value: unknown): ArticleType {
@@ -132,6 +138,7 @@ export function normalizeArticleType(value: unknown): ArticleType {
     "commercial",
     "transactional",
     "listicle",
+    "casino_review",
   ];
   if (typeof value === "string" && valid.includes(value as ArticleType)) {
     return value as ArticleType;

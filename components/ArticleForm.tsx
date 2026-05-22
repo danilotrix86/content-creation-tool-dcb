@@ -243,7 +243,7 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
           onChange={(e) =>
             setForm((f) => ({ ...f, main_topic: e.target.value }))
           }
-          placeholder="e.g. How to Calculate Derivatives in Calculus"
+          placeholder="e.g. Best Online Casino Reviews for US Players"
           className={inputClass}
           required
           disabled={isGenerating}
@@ -262,7 +262,7 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
           onChange={(e) =>
             setForm((f) => ({ ...f, keyword: e.target.value }))
           }
-          placeholder="e.g. calculus derivatives, derivative rules"
+          placeholder="e.g. online casino reviews, best casino sites"
           className={inputClass}
           required
           disabled={isGenerating}
@@ -320,7 +320,7 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
           onChange={(e) =>
             setForm((f) => ({ ...f, content_brief: e.target.value }))
           }
-          placeholder="e.g. Write for founders new to payroll; emphasize compliance risks; include a checklist; end with a soft CTA to book a demo."
+          placeholder="e.g. Write for players comparing licensed online casinos; cover bonuses, payout speed, and game variety; include a pros/cons table; end with responsible gambling note."
           className={`${inputClass} min-h-[120px] resize-y`}
           disabled={isGenerating}
           aria-labelledby="section-content-brief"
@@ -359,7 +359,7 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
                   type="text"
                   value={kw}
                   onChange={(e) => updateKeyword(i, e.target.value)}
-                  placeholder="Keyword for Google search"
+                  placeholder="e.g. best online casino reviews"
                   className={inputClass}
                   disabled={isGenerating}
                 />

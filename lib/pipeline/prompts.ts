@@ -159,6 +159,14 @@ Article type: Listicle
 - Consistent template per item section; include intro framing and summary/wrap-up H2s
 - Each item H2 should stand alone as a scannable unit
 ${common}`,
+    casino_review: `
+Article type: Casino review
+- Structure for player decision-making: overview → licensing & trust → bonuses & wagering → games & providers → payments & limits → mobile/UX → pros/cons → responsible gambling → verdict
+- Use comparison-friendly H2s when reviewing multiple casinos (e.g. "Bonus comparison", "Payout speed", "Who each casino is best for")
+- Include evaluation criteria early so readers understand how casinos were assessed
+- Neutral reviewer tone — informative, not hype; flag unclear bonus terms or weak licensing signals
+- When reviewing a single casino, follow a consistent review template; when comparing several, use parallel section labels across brands
+${common}`,
   };
 
   return byType[articleType];
@@ -197,6 +205,7 @@ ${insightsBlock}
 
 Infer keyword intent from:
 - Main keyword phrasing ("what is", "how to" → informational; "best", "vs", "review" → commercial; "buy", "pricing", "discount" → transactional; brand/product name alone → navigational)
+- For casino_review article type: expect commercial investigation intent (comparisons, "best casino", bonus/payout evaluation) unless keywords clearly indicate a single-brand navigational query
 - Secondary keywords as additional intent signals
 - Competitor SERP patterns when available
 
@@ -218,6 +227,7 @@ Rules for recommended_section_range:
 - commercial: typically 8-12 H2s
 - transactional: typically 6-10 H2s
 - listicle: typically 10-15 H2s
+- casino_review: typically 8-14 H2s
 - Adjust within these bands using competitor data when available; article type takes precedence over SERP length when they conflict
 `;
 }
@@ -325,6 +335,13 @@ function sectionsTypeWritingRules(
 - Each ## section (list item) follows a consistent template: what it is → why it matters → practical tip or takeaway
 - Scannable: lead with the key point, then 2-3 supporting paragraphs
 - Numbered or clearly labeled items; uniform structure across items`,
+    casino_review: `
+- Neutral reviewer tone — help players compare licensed options; avoid exaggerated claims or guaranteed-win language
+- Each ## section: 2-4 paragraphs; use comparison tables for bonuses, payment methods, game counts, or limits where useful
+- Cover licensing, wagering requirements, payout speed, game variety, and mobile experience when relevant to the section
+- Include pros/cons or trade-off framing in dedicated sections; end sections with a clear takeaway for the reader
+- Mention responsible gambling where appropriate (limits, self-exclusion, age restrictions) without moralizing
+- Do not invent specific bonus amounts, RTP figures, or license numbers unless provided in the content brief or competitor analysis`,
   };
 
   return intentNote + byType[articleType];
