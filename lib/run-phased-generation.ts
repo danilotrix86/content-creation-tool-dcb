@@ -1,4 +1,5 @@
 import type { ArticleResult } from "@/lib/pipeline/types";
+import type { PipelineDetailEntry } from "@/lib/pipeline/pipeline-detail";
 
 export interface PhasedGeneratePayload {
   main_topic: string;
@@ -28,7 +29,8 @@ function isRetryableStepError(status: number, error?: string): boolean {
 export async function runPhasedGeneration(
   payload: PhasedGeneratePayload,
   onProgress: (message: string) => void,
-  activeJobRef?: { current: string | null }
+  activeJobRef?: { current: string | null },
+  onDetail?: (entries: PipelineDetailEntry[]) => void
 ): Promise<ArticleResult & { id?: string }> {
   const createRes = await fetch("/api/generate/jobs", {
     method: "POST",
@@ -62,6 +64,7 @@ export async function runPhasedGeneration(
       error?: string;
       done?: boolean;
       messages?: string[];
+      details?: PipelineDetailEntry[];
       result?: ArticleResult & { id?: string };
       retry?: boolean;
     } = {};
@@ -72,6 +75,10 @@ export async function runPhasedGeneration(
       });
 
       json = (await stepRes.json().catch(() => ({}))) as typeof json;
+
+      if (json.details?.length) {
+        onDetail?.(json.details);
+      }
 
       if (stepRes.ok) {
         break;

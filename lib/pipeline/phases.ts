@@ -1,5 +1,10 @@
 import type { ArticleInput, ArticleResult } from "./types";
-import { pipelineDetail, truncateForLog, pipelineDetailText } from "./pipeline-log";
+import {
+  COMPETITOR_BUNDLE_LOG_MAX_CHARS,
+  pipelineDetail,
+  truncateForLog,
+  pipelineDetailText,
+} from "./pipeline-log";
 import { countWords, calculateReadingTime } from "./utils";
 import { searchGoogle } from "./serp";
 import {
@@ -222,7 +227,8 @@ export async function runJobStep(
         const scraped = formatScrapedForPrompt(articles);
         pipelineDetailText(
           "Competitor articles bundle (phased → topic insights LLM)",
-          scraped
+          scraped,
+          { maxDisplayChars: COMPETITOR_BUNDLE_LOG_MAX_CHARS }
         );
         nextState.topicInsights = await llm.generateTopicInsights(
           scraped,

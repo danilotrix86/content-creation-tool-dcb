@@ -10,6 +10,8 @@ import {
   formatUserProgress,
   type PipelineProgressEvent,
 } from "@/lib/pipeline/progress";
+import { createPipelineDetailBuffer } from "@/lib/pipeline/pipeline-log";
+import type { PipelineDetailEntry } from "@/lib/pipeline/pipeline-detail";
 import type { ArticleResult } from "@/lib/pipeline/types";
 import type { GenerationJobRow, JobPhase } from "@/lib/pipeline/job-state";
 import { comparePhases } from "@/lib/pipeline/job-state";
@@ -74,7 +76,8 @@ async function buildCompletedResponse(
   jobId: string,
   row: GenerationJobRow,
   messages: string[],
-  localResult?: ArticleResult & { id: string }
+  localResult?: ArticleResult & { id: string },
+  details?: PipelineDetailEntry[]
 ) {
   const result = await loadResultForJob(row, localResult);
   return Response.json({
@@ -82,6 +85,7 @@ async function buildCompletedResponse(
     done: true,
     nextPhase: "done" as JobPhase,
     messages,
+    details: details ?? [],
     result,
     resultId: row.result_id,
   });
@@ -90,13 +94,95 @@ async function buildCompletedResponse(
 async function buildRunningResponse(
   jobId: string,
   row: GenerationJobRow,
-  messages: string[]
+  messages: string[],
+  details?: PipelineDetailEntry[]
 ) {
   return Response.json({
     jobId,
     done: false,
     nextPhase: row.phase,
     messages,
+    details: details ?? [],
+  });
+}
+
+function appendStepLifecycleLogs(
+  log: ReturnType<typeof createPipelineDetailBuffer>,
+  context: {
+    requestId: string;
+    startedPhase: JobPhase;
+    durationMs: number;
+    nextPhase?: JobPhase;
+    reconciled?: boolean;
+    done?: boolean;
+    kind: "complete" | "slow" | "error" | "reconciled";
+    error?: string;
+  }
+) {
+  if (context.kind === "complete") {
+    log.push({
+      level: "info",
+      category: "system",
+      label: "Job step complete",
+      info: {
+        requestId: context.requestId,
+        phase: context.startedPhase,
+        nextPhase: context.nextPhase,
+        durationMs: context.durationMs,
+        reconciled: context.reconciled,
+        done: context.done,
+      },
+    });
+    if (context.durationMs > SLOW_STEP_MS) {
+      log.push({
+        level: "warn",
+        category: "warn",
+        label: "Job step slow (near serverless limit)",
+        info: {
+          requestId: context.requestId,
+          phase: context.startedPhase,
+          durationMs: context.durationMs,
+        },
+      });
+    }
+    return;
+  }
+  if (context.kind === "slow") {
+    log.push({
+      level: "warn",
+      category: "warn",
+      label: "Job step slow (near serverless limit)",
+      info: {
+        requestId: context.requestId,
+        phase: context.startedPhase,
+        durationMs: context.durationMs,
+      },
+    });
+    return;
+  }
+  if (context.kind === "reconciled") {
+    log.push({
+      level: "info",
+      category: "system",
+      label: "Job step reconciled after concurrent update",
+      info: {
+        requestId: context.requestId,
+        startedPhase: context.startedPhase,
+        nextPhase: context.nextPhase,
+      },
+    });
+    return;
+  }
+  log.push({
+    level: "warn",
+    category: "warn",
+    label: "Job step error",
+    info: {
+      requestId: context.requestId,
+      phase: context.startedPhase,
+      durationMs: context.durationMs,
+      error: context.error,
+    },
   });
 }
 
@@ -133,9 +219,18 @@ export async function POST(_request: NextRequest, context: RouteContext) {
   }
 
   const stepStartedAt = Date.now();
+  const log = createPipelineDetailBuffer();
+  log.push({
+    level: "info",
+    category: "system",
+    label: "Job step started",
+    info: { requestId, phase: startedPhase },
+  });
 
   try {
-    const step = await runJobStep(job.phase, job.input, job.state, env);
+    const step = await log.collect(() =>
+      runJobStep(job.phase, job.input, job.state, env)
+    );
     const messages = progressMessages(step.progress);
 
     if (step.done && step.result) {
@@ -161,8 +256,23 @@ export async function POST(_request: NextRequest, context: RouteContext) {
         reconciled,
         done: true,
       });
+      appendStepLifecycleLogs(log, {
+        kind: "complete",
+        requestId,
+        startedPhase,
+        durationMs: Date.now() - stepStartedAt,
+        nextPhase: "done",
+        reconciled,
+        done: true,
+      });
 
-      return buildCompletedResponse(jobId, row, messages, step.result);
+      return buildCompletedResponse(
+        jobId,
+        row,
+        messages,
+        step.result,
+        log.entries
+      );
     }
 
     const { row, reconciled } = await commitGenerationJobStep(jobId, {
@@ -186,12 +296,21 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       reconciled,
       done: false,
     });
+    appendStepLifecycleLogs(log, {
+      kind: "complete",
+      requestId,
+      startedPhase,
+      durationMs: Date.now() - stepStartedAt,
+      nextPhase: row.phase,
+      reconciled,
+      done: false,
+    });
 
     if (row.status === "completed") {
-      return buildCompletedResponse(jobId, row, messages);
+      return buildCompletedResponse(jobId, row, messages, undefined, log.entries);
     }
 
-    return buildRunningResponse(jobId, row, messages);
+    return buildRunningResponse(jobId, row, messages, log.entries);
   } catch (err) {
     const durationMs = Date.now() - stepStartedAt;
     console.error("[Job Step Error]", jobId, {
@@ -200,24 +319,43 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       durationMs,
       err,
     });
-    if (durationMs > SLOW_STEP_MS) {
-      console.warn("[Job Step Slow]", jobId, {
-        requestId,
-        phase: startedPhase,
-        durationMs,
-      });
-    }
     const message = err instanceof Error ? err.message : "Unknown error";
     const cause =
       err instanceof Error && "cause" in err && err.cause instanceof Error
         ? err.cause.message
         : "";
     const fullMessage = message + tlsErrorHint(message, cause);
+    appendStepLifecycleLogs(log, {
+      kind: "error",
+      requestId,
+      startedPhase,
+      durationMs,
+      error: fullMessage,
+    });
+    if (durationMs > SLOW_STEP_MS) {
+      console.warn("[Job Step Slow]", jobId, {
+        requestId,
+        phase: startedPhase,
+        durationMs,
+      });
+      appendStepLifecycleLogs(log, {
+        kind: "slow",
+        requestId,
+        startedPhase,
+        durationMs,
+      });
+    }
 
     const current = await getGenerationJob(jobId);
     if (current) {
       if (current.status === "completed" && current.result_id) {
-        return buildCompletedResponse(jobId, current, ["Article saved."]);
+        return buildCompletedResponse(
+          jobId,
+          current,
+          ["Article saved."],
+          undefined,
+          log.entries
+        );
       }
 
       if (
@@ -231,12 +369,23 @@ export async function POST(_request: NextRequest, context: RouteContext) {
           currentStatus: current.status,
           source: "error_handler",
         });
-        return buildRunningResponse(jobId, current, []);
+        appendStepLifecycleLogs(log, {
+          kind: "reconciled",
+          requestId,
+          startedPhase,
+          durationMs,
+          nextPhase: current.phase,
+        });
+        return buildRunningResponse(jobId, current, [], log.entries);
       }
 
       if (isConcurrentJobUpdateError(err)) {
         return Response.json(
-          { error: CONCURRENT_JOB_UPDATE_MESSAGE, retry: true },
+          {
+            error: CONCURRENT_JOB_UPDATE_MESSAGE,
+            retry: true,
+            details: log.entries,
+          },
           { status: 409 }
         );
       }
@@ -253,6 +402,9 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       }
     }
 
-    return Response.json({ error: fullMessage }, { status: 500 });
+    return Response.json(
+      { error: fullMessage, details: log.entries },
+      { status: 500 }
+    );
   }
 }

@@ -7,7 +7,12 @@ import type {
   TopicInsights,
 } from "./types";
 import { formatTopicInsightsForPrompt } from "./article-strategy";
-import { pipelineDetail, truncateForLog, pipelineDetailText } from "./pipeline-log";
+import {
+  COMPETITOR_BUNDLE_LOG_MAX_CHARS,
+  pipelineDetail,
+  truncateForLog,
+  pipelineDetailText,
+} from "./pipeline-log";
 import { countWords, calculateReadingTime } from "./utils";
 import { searchGoogle } from "./serp";
 import {
@@ -194,7 +199,8 @@ export async function runPipeline(
       });
       pipelineDetailText(
         "Competitor articles bundle (full scraped markdown → topic insights LLM)",
-        scraped
+        scraped,
+        { maxDisplayChars: COMPETITOR_BUNDLE_LOG_MAX_CHARS }
       );
       onProgress?.({ type: "analyze_competitors" });
       topicInsights = await llm.generateTopicInsights(

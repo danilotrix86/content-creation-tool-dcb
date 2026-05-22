@@ -8,6 +8,7 @@ import { ArticlePreview } from "@/components/ArticlePreview";
 import { LoadingState } from "@/components/LoadingState";
 import { SiteHeader } from "@/components/SiteHeader";
 import type { ArticleResult } from "@/lib/pipeline/types";
+import type { PipelineDetailEntry } from "@/lib/pipeline/pipeline-detail";
 import { runPhasedGeneration } from "@/lib/run-phased-generation";
 
 export default function Home() {
@@ -17,6 +18,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [progressSteps, setProgressSteps] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState<string | null>(null);
+  const [detailLogs, setDetailLogs] = useState<PipelineDetailEntry[]>([]);
 
   const handleProgress = (message: string) => {
     setProgressSteps((prev) => {
@@ -28,6 +30,11 @@ export default function Home() {
     setCurrentStep(message);
   };
 
+  const handleDetail = (entries: PipelineDetailEntry[]) => {
+    if (!entries.length) return;
+    setDetailLogs((prev) => [...prev, ...entries]);
+  };
+
   const activeJobRef = useRef<string | null>(null);
 
   const handleSubmit = async (data: FormData) => {
@@ -36,6 +43,7 @@ export default function Home() {
     setResult(null);
     setProgressSteps([]);
     setCurrentStep(null);
+    setDetailLogs([]);
     setOutputFormat(data.output_format);
     activeJobRef.current = null;
 
@@ -54,7 +62,8 @@ export default function Home() {
           sitemap_url: data.sitemap_url || null,
         },
         handleProgress,
-        activeJobRef
+        activeJobRef,
+        handleDetail
       );
       setCurrentStep(null);
       setProgressSteps((prev) =>
@@ -118,6 +127,7 @@ export default function Home() {
                   <LoadingState
                     steps={progressSteps}
                     currentStep={currentStep}
+                    detailLogs={detailLogs}
                   />
                 </motion.div>
               )}
