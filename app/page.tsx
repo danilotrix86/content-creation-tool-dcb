@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArticleForm, type FormData } from "@/components/ArticleForm";
@@ -8,7 +8,7 @@ import { ArticlePreview } from "@/components/ArticlePreview";
 import { LoadingState } from "@/components/LoadingState";
 import { SiteHeader } from "@/components/SiteHeader";
 import type { ArticleResult } from "@/lib/pipeline/types";
-import { consumeGenerateStream } from "@/lib/consume-generate-stream";
+import { runPhasedGeneration } from "@/lib/run-phased-generation";
 
 export default function Home() {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -28,6 +28,8 @@ export default function Home() {
     setCurrentStep(message);
   };
 
+  const activeJobRef = useRef<string | null>(null);
+
   const handleSubmit = async (data: FormData) => {
     setIsGenerating(true);
     setError(null);
@@ -35,12 +37,11 @@ export default function Home() {
     setProgressSteps([]);
     setCurrentStep(null);
     setOutputFormat(data.output_format);
+    activeJobRef.current = null;
 
     try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const article = await runPhasedGeneration(
+        {
           main_topic: data.main_topic,
           keyword: data.keyword,
           content_brief: data.content_brief,
@@ -51,10 +52,10 @@ export default function Home() {
           article_language: data.article_language,
           output_format: data.output_format,
           sitemap_url: data.sitemap_url || null,
-        }),
-      });
-
-      const article = await consumeGenerateStream(res, handleProgress);
+        },
+        handleProgress,
+        activeJobRef
+      );
       setCurrentStep(null);
       setProgressSteps((prev) =>
         prev.length ? prev : ["Starting generation…"]

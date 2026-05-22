@@ -125,7 +125,7 @@ async function scrapeWithRetry(
     accountId: string;
     scrapeLocale?: ScrapeLocaleHint;
   }
-): Promise<string | null> {
+): Promise<{ url: string; content: string } | null> {
   const profiles: ScrapeProfile[] = ["default", "heavy"];
 
   for (let i = 0; i < profiles.length; i++) {
@@ -134,7 +134,7 @@ async function scrapeWithRetry(
       const content = await scrapeToMarkdown(url, { ...options, profile });
       const quality = isUsableScrapedContent(content);
       if (quality.usable) {
-        return content;
+        return { url, content };
       }
 
       pipelineDetail("Competitor page skipped (low-quality markdown)", {
@@ -167,6 +167,25 @@ async function scrapeWithRetry(
   return null;
 }
 
+export async function scrapeSingleUrl(
+  url: string,
+  options: {
+    apiToken: string;
+    accountId: string;
+    scrapeLocale?: ScrapeLocaleHint;
+  }
+): Promise<{ url: string; content: string } | null> {
+  const article = await scrapeWithRetry(url, options);
+  if (article) {
+    pipelineDetail("Competitor markdown scraped (single URL)", {
+      url,
+      markdownChars: article.content.length,
+      preview: truncateForLog(article.content, 280),
+    });
+  }
+  return article;
+}
+
 export async function scrapeArticles(
   urls: string[],
   options: {
@@ -185,18 +204,19 @@ export async function scrapeArticles(
     }
   }
 
-  const articles: { url: string; content: string }[] = [];
+  const results = await Promise.all(
+    urls.map((url) => scrapeWithRetry(url, options))
+  );
+  const articles = results.filter(
+    (a): a is { url: string; content: string } => a !== null
+  );
 
-  for (const url of urls) {
-    const content = await scrapeWithRetry(url, options);
-    if (content) {
-      articles.push({ url, content });
-      pipelineDetail("Competitor markdown scraped (used for topic insights prompt)", {
-        url,
-        markdownChars: content.length,
-        preview: truncateForLog(content, 280),
-      });
-    }
+  for (const article of articles) {
+    pipelineDetail("Competitor markdown scraped (used for topic insights prompt)", {
+      url: article.url,
+      markdownChars: article.content.length,
+      preview: truncateForLog(article.content, 280),
+    });
   }
 
   pipelineDetail("Scrape batch complete", {
