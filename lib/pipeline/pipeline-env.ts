@@ -7,6 +7,9 @@ import {
 
 export type PipelineRuntimeEnv = PipelineLlmEnv & {
   SERPAPI_KEY?: string;
+  SCRAPEDO_TOKEN?: string;
+  /** When "1", skip Scrape.do entirely (use Cloudflare + SERP only). */
+  SCRAPEDO_DISABLED?: boolean;
   CLOUDFLARE_API_TOKEN?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
 };
@@ -28,6 +31,8 @@ export function getPipelineRuntimeEnv(): PipelineRuntimeEnv {
     OPENAI_FAST_MODEL: fastModel,
     OPENAI_IMAGE_MODEL: resolveOpenAiImageModel(),
     SERPAPI_KEY: process.env.SERPAPI_KEY,
+    SCRAPEDO_TOKEN: process.env.SCRAPEDO_TOKEN?.trim() || undefined,
+    SCRAPEDO_DISABLED: process.env.SCRAPEDO_DISABLED === "1",
     CLOUDFLARE_API_TOKEN: process.env.CLOUDFLARE_API_TOKEN,
     CLOUDFLARE_ACCOUNT_ID: process.env.CLOUDFLARE_ACCOUNT_ID,
   };

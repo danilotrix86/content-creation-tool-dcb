@@ -4,6 +4,7 @@ export type PipelineProgressEvent =
   | { type: "search_google"; keywords: string[] }
   | { type: "read_competitor_pages"; count: number; attempted?: number }
   | { type: "analyze_competitors" }
+  | { type: "research_bonus" }
   | { type: "analyze_strategy" }
   | { type: "create_outline" }
   | { type: "internal_links" }
@@ -38,6 +39,8 @@ export function formatUserProgress(event: PipelineProgressEvent): string {
         : "Reading competitor pages…";
     case "analyze_competitors":
       return "Analyzing competitor content…";
+    case "research_bonus":
+      return "Researching casino bonus…";
     case "analyze_strategy":
       return "Planning article structure…";
     case "create_outline":

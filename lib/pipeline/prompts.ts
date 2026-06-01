@@ -38,6 +38,12 @@ ${trimmed}
 `;
 }
 
+/** Casino brand name (keyword/topic with a trailing "review" stripped). */
+function casinoBrandName(keyword: string, mainTopic: string): string {
+  const strip = (s: string) => s.replace(/\s+reviews?\s*$/i, "").trim();
+  return strip(keyword) || strip(mainTopic) || keyword.trim();
+}
+
 const SEO_RULES = `
 - Insert the main keyword in the first paragraph of every section
 - Use semantic variants and synonyms of the keyword in the text (LSI keywords)
@@ -49,12 +55,18 @@ const SEO_RULES = `
 - If internal links are provided, insert them naturally using Markdown [anchor](url)
 `;
 
-const EXTERNAL_LINKS_RULES = `
-- Insert 1-2 links to authoritative external sources for the entire block of sections
-- Use only high-authority domains: Wikipedia, university sites (.edu), encyclopedias, institutional resources
-- External links must support specific claims or important definitions
-- Markdown syntax: [descriptive text](url)
-- Do NOT link to competitor sites
+const CASINO_REVIEW_SEO_RULES = `
+- Per H2 section: ~200-280 words of prose, OR one compact table plus one short paragraph
+- Total article length scales with the number of sections in the outline — write each section to
+  its full budget; do NOT pad to hit a number, and do NOT compress sections to keep the piece short
+- FAQ section: maximum 4 Q&As; each answer must be 2 sentences or fewer
+- Use the casino **brand name** (not the full article title and not the word "review") in body copy
+- Cover semantic intent via LSI variants; the exact target keyword is optional and at most once per section — only if it reads naturally in running prose (never as a framing device)
+- Never start a paragraph with "[keyword] alapján", "In this review", "This article", or equivalent meta phrasing
+- Use bullet lists and **bold** for skimming; keep lists short (3-5 items max)
+- Be concise and specific — stop when the point is made; do not pad or recap
+- Authoritative, professional tone
+- If internal links are provided, insert them naturally using Markdown [anchor](url)
 `;
 
 const VISUAL_ENHANCEMENT_RULES = `
@@ -161,11 +173,21 @@ Article type: Listicle
 ${common}`,
     casino_review: `
 Article type: Casino review
-- Structure for player decision-making: overview → licensing & trust → bonuses & wagering → games & providers → payments & limits → mobile/UX → pros/cons → responsible gambling → verdict
-- Use comparison-friendly H2s when reviewing multiple casinos (e.g. "Bonus comparison", "Payout speed", "Who each casino is best for")
-- Include evaluation criteria early so readers understand how casinos were assessed
-- Neutral reviewer tone — informative, not hype; flag unclear bonus terms or weak licensing signals
-- When reviewing a single casino, follow a consistent review template; when comparing several, use parallel section labels across brands
+- Produce a number of H2 sections within the mandatory range above; the total article length scales
+  with the number of sections (≈250 words each), so use the range to control length
+- ALWAYS include these core sections (translate titles to the target language), keeping this order:
+  1. Quick verdict and ratings summary (always first)
+  2. Welcome bonus and wagering
+  3. Trust, licence and responsible gambling
+  4. Pros, cons and final verdict (always last, except an optional FAQ after it)
+- When the range allows MORE sections, expand coverage by adding or splitting topics such as:
+  who this casino suits, registration & KYC, payment methods & withdrawals, deposit & withdrawal
+  speed, games & providers, live casino, mobile experience, customer support, security & fairness,
+  comparison vs competitors, and an FAQ (maximum 4 questions, only when 5+ sections are allowed)
+- When the range allows FEWER sections, merge related topics INTO the core sections — never drop the
+  bonus, licence/trust, or final verdict sections to stay short
+- Neutral reviewer tone — informative, not hype; flag unclear bonus terms only when evidenced
+- When comparing several casinos, use parallel section labels across brands
 ${common}`,
   };
 
@@ -227,7 +249,7 @@ Rules for recommended_section_range:
 - commercial: typically 8-12 H2s
 - transactional: typically 6-10 H2s
 - listicle: typically 10-15 H2s
-- casino_review: typically 8-14 H2s
+- casino_review: section count is derived from the requested article length (≈250 words per section) and will be enforced downstream; recommend dense, decision-focused sections
 - Adjust within these bands using competitor data when available; article type takes precedence over SERP length when they conflict
 `;
 }
@@ -257,6 +279,15 @@ ${topicInsights}
     : "";
 
   const typeRules = articleTypeOutlineRules(articleType, strategy);
+  const casinoReviewOutlineRules =
+    articleType === "casino_review"
+      ? `
+Casino review outline rules:
+- Use empty subsections: [] by default for every section
+- At most 1 H3 per H2 when a table or short list truly needs a subheading
+- Total H3 count across the entire outline must not exceed 4
+`
+      : "";
 
   return `
 You are an expert SEO and content writer. Your goal is to create an outline optimized to rank on the first page of Google.
@@ -271,6 +302,7 @@ ${insightsBlock}
 --- ARTICLE STRATEGY ---
 ${typeRules}
 --- END ARTICLE STRATEGY ---
+${casinoReviewOutlineRules}
 
 Respond EXCLUSIVELY with a valid JSON object (no extra text, no markdown).
 The structure must be:
@@ -307,9 +339,12 @@ ${langInstr}
 
 function sectionsTypeWritingRules(
   articleType: ArticleType,
-  keywordIntent: KeywordIntent
+  keywordIntent: KeywordIntent,
+  keyword: string,
+  mainTopic: string
 ): string {
   const intentNote = `- Keyword intent is "${keywordIntent}" — align tone and depth with what searchers expect at this stage of the journey\n`;
+  const brand = casinoBrandName(keyword, mainTopic);
 
   const byType: Record<ArticleType, string> = {
     informational: `
@@ -338,20 +373,46 @@ function sectionsTypeWritingRules(
     casino_review: `
 You are writing a casino review for a real audience comparing licensed gambling options.
 
+LENGTH BUDGET (mandatory)
+- Each ## section: ~200-280 words OR one compact table + 1 short paragraph
+- Write each section to its full budget; the article's total length is set by the number of
+  sections, so do NOT shorten sections to keep the whole piece brief
+- Stop when the point is made; do not pad, recap, or restate earlier sections
+
 TONE
 Write as a knowledgeable, impartial reviewer — not as a casino promoter and not as a 
 compliance officer. Be direct and useful.
 
+CRITICAL STYLING RULE (anti-meta loop)
+- Write AS the reviewer speaking directly to the reader — not as someone summarizing a document
+- Never mention "the review", "this article", "the text", "this guide", or the full target keyword phrase in body paragraphs
+- Use the brand name "${brand}" when referring to the casino
+- BAD: "A ${keyword} alapján a kaszinó jó üdvözlő ajánlatot kínál..."
+- GOOD: "A ${brand} kifejezetten erős üdvözlő ajánlatot kínál..."
+- Do not use "[keyword] … szempontjából/része alapján" sentence openers — state the assessment directly
+
 STRUCTURE RULES
 - Follow the section order in the user prompt exactly
-- Each section: 2–3 focused paragraphs maximum, or a table where specified
+- Each section: 2 focused paragraphs maximum, or a table where specified
 - Do not add preamble sections, transition summaries, or meta-commentary about the review itself
 - Do not repeat warnings, caveats, or advice across multiple sections
 
 CONTENT RULES
-- Use only facts provided in the content brief
-- If a specific value (bonus amount, RTP, licence number, withdrawal limit) is not in the 
-  brief, state it is unconfirmed once and move on — do not build a section around the absence
+- Use only facts provided in the content brief or the researched data blocks
+- ACCURACY (critical): never claim that a licence number, regulator, operator name, company, or
+  address is "not shown", "not displayed", "hidden", "not visible on the site", or "missing".
+  This tool may not have accessed the casino's own website, so a value being absent from the data
+  you were given does NOT mean it is absent from the casino's site.
+- Never use a missing, unconfirmed, or unavailable data point as evidence that the casino is
+  unreliable, untrustworthy, unsafe, or a scam — absence of data is not a red flag
+- If a specific value (bonus amount, RTP, licence number, withdrawal limit) is not in the brief or
+  researched data, OMIT it. Do not write that it "could not be confirmed", is "unavailable", or
+  "unverified", and do not speculate about why it is missing
+- Do NOT write a section, paragraph, or bullet whose main point is that information is unknown or
+  unavailable. If a planned section has no supporting data, merge its useful parts elsewhere or
+  drop it, and let the final verdict carry any brief, neutral note about limited public info
+- Avoid repeating hedging phrases ("could not be confirmed from available sources" and similar);
+  state what IS known plainly and move on
 - Do not invent operator names, licence numbers, bonus figures, or payout speeds
 - Wagering requirements must include a worked numerical example when mentioned
 - Comparison tables must use realistic market benchmarks if competitor data is not provided
@@ -361,7 +422,9 @@ WHAT TO INCLUDE
 - Concrete pros and cons that are specific to this casino, not generic casino advice
 - At least one practical observation per major section (bonus terms visibility, cashier 
   transparency, KYC friction, mobile usability) — describe what was found, not what should exist
-- One red flag or one specific trust signal in the licence/trust section
+- In the licence/trust section, mention a red flag ONLY if it is actually evidenced in the brief or
+  researched data; otherwise state plainly that nothing concerning was found in the available
+  information. Do not manufacture a red flag to seem balanced
 - A responsible gambling mention in the final verdict, not repeated throughout
 
 WHAT TO AVOID
@@ -386,6 +449,7 @@ SPECIFIC FAILURE MODES TO AVOID:
 - The responsible CTA appears ONCE, in the final verdict only
 - FAQ questions must be answerable specifically about this casino; 
   if a question applies to every casino, replace it
+- Opening paragraphs with the article title, target keyword, or "based on this review" framing
 
   `,
   };
@@ -435,8 +499,21 @@ Do NOT rewrite this content; your sections must follow logically.
 `
     : "";
 
+  const seoRules =
+    articleType === "casino_review" ? CASINO_REVIEW_SEO_RULES : SEO_RULES;
+  const visualRules =
+    articleType === "casino_review" ? "" : VISUAL_ENHANCEMENT_RULES;
+
+  const openerLine =
+    articleType === "casino_review"
+      ? `You are writing a standalone casino review for readers evaluating "${casinoBrandName(
+          keyword,
+          mainTopic
+        )}". The SEO target keyword is "${keyword}" — use it sparingly in natural prose; prioritize the brand name and LSI variants in body text.`
+      : `You are an expert SEO content writer. You are writing an article optimized for Google to rank for the keyword "${keyword}".`;
+
   return `
-You are an expert SEO content writer. You are writing an article optimized for Google to rank for the keyword "${keyword}".
+${openerLine}
 
 Topic: ${mainTopic}
 Target keyword: ${keyword}
@@ -454,14 +531,12 @@ Writing instructions:
 ${briefBullet}- Write ONLY the indicated sections, without general introduction or conclusion
 - Do not repeat the main article title
 - Use Markdown: ## for H2, ### for H3, paragraphs separated by blank line, **bold**, *italic*, lists with -
-${sectionsTypeWritingRules(articleType, keywordIntent)}
+${sectionsTypeWritingRules(articleType, keywordIntent, keyword, mainTopic)}
 - Professional natural tone${linksInstruction}
 
-${SEO_RULES}
+${seoRules}
 
-${VISUAL_ENHANCEMENT_RULES}
-
-${EXTERNAL_LINKS_RULES}
+${visualRules}
 
 ${linksBlock}
 ${langInstr}
@@ -585,5 +660,114 @@ Selection criteria:
 
 Respond EXCLUSIVELY with valid JSON:
 {"section_indices": [${Array.from({ length: count }, (_, i) => `index${i + 1}`).join(", ")}]}
+`;
+}
+
+export function bonusExtractionPrompt(
+  scrapedMarkdown: string,
+  sourceUrl: string,
+  casinoName: string,
+  sourceType: "official_bonus_page" | "serp_fallback"
+): string {
+  const sourceNote =
+    sourceType === "official_bonus_page"
+      ? "The source is the casino's own bonus/promotions page."
+      : "The source is a third-party page from Google search — only extract facts explicitly stated; lower confidence if terms are unclear.";
+
+  return `
+You are a precise data extractor for online casino welcome bonus terms.
+
+Casino name: ${casinoName}
+Source URL: ${sourceUrl}
+Source type: ${sourceType}
+${sourceNote}
+
+--- SCRAPED PAGE CONTENT ---
+${scrapedMarkdown.slice(0, 12000)}
+--- END SCRAPED PAGE CONTENT ---
+
+Extract welcome bonus facts ONLY if they are explicitly stated in the scraped content above.
+Do NOT infer, estimate, or fill gaps with typical industry values.
+
+Respond EXCLUSIVELY with valid JSON (no markdown fences):
+{
+  "status": "verified" | "partial" | "insufficient",
+  "confidence": "high" | "medium" | "low",
+  "source_url": "${sourceUrl}",
+  "source_type": "${sourceType}",
+  "block_reason": "blocked_page" | "empty_content" | "no_bonus_found" | "low_confidence" | null,
+  "facts": {
+    "bonus_amount": "string or omit",
+    "free_spins": "string or omit",
+    "min_deposit": "string or omit",
+    "wagering_requirement": "string or omit",
+    "max_bet_during_playthrough": "string or omit",
+    "excluded_games": "string or omit",
+    "bonus_cap": "string or omit",
+    "expiry": "string or omit",
+    "bonus_code": "string or omit"
+  },
+  "raw_excerpt": "One short verbatim quote (max 200 chars) supporting the main bonus figure, or omit"
+}
+
+Rules:
+- status "verified" + confidence "high"/"medium": multiple clear facts with explicit numbers/terms
+- status "partial" or confidence "low": some facts found but ambiguous or incomplete
+- status "insufficient": page is blocked, unrelated, or contains no extractable bonus terms
+- Omit any fact field not explicitly present — never guess
+- If the page looks like a Cloudflare block, 403, or login wall → status "insufficient", block_reason "blocked_page"
+`;
+}
+
+export function casinoFactsExtractionPrompt(
+  scrapedMarkdown: string,
+  sourceUrl: string,
+  casinoName: string,
+  sourceType: "official_bonus_page" | "serp_fallback"
+): string {
+  const sourceNote =
+    sourceType === "official_bonus_page"
+      ? "The source is the casino's own website (home, about, terms, or footer)."
+      : "The source is a third-party page from Google search — only extract facts explicitly stated; lower confidence if details are unclear.";
+
+  return `
+You are a precise data extractor for online casino licensing and operator information.
+
+Casino name: ${casinoName}
+Source URL: ${sourceUrl}
+Source type: ${sourceType}
+${sourceNote}
+
+--- SCRAPED PAGE CONTENT ---
+${scrapedMarkdown.slice(0, 12000)}
+--- END SCRAPED PAGE CONTENT ---
+
+Extract licensing and operator facts ONLY if they are explicitly stated in the scraped content above.
+Do NOT infer, estimate, or fill gaps with typical industry values.
+
+Respond EXCLUSIVELY with valid JSON (no markdown fences):
+{
+  "status": "verified" | "partial" | "insufficient",
+  "confidence": "high" | "medium" | "low",
+  "source_url": "${sourceUrl}",
+  "source_type": "${sourceType}",
+  "block_reason": "blocked_page" | "empty_content" | "no_bonus_found" | "low_confidence" | null,
+  "facts": {
+    "licence_number": "string or omit",
+    "regulator": "licensing authority / jurisdiction, string or omit",
+    "operator_company": "string or omit",
+    "registered_address": "string or omit",
+    "established_year": "string or omit",
+    "responsible_gambling_tools": "string or omit"
+  },
+  "raw_excerpt": "One short verbatim quote (max 200 chars) supporting the licence/operator details, or omit"
+}
+
+Rules:
+- status "verified" + confidence "high"/"medium": a licence number or regulator is explicitly stated
+- status "partial" or confidence "low": some operator details found but licensing is ambiguous or incomplete
+- status "insufficient": page is blocked, unrelated, or contains no extractable licensing/operator details
+- Omit any fact field not explicitly present — never guess
+- If the page looks like a Cloudflare block, 403, or login wall → status "insufficient", block_reason "blocked_page"
 `;
 }

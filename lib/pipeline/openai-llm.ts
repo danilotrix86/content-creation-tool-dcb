@@ -18,6 +18,8 @@ import {
   metaPrompt,
   altTextPrompt,
   pickSectionsForImagesPrompt,
+  bonusExtractionPrompt,
+  casinoFactsExtractionPrompt,
 } from "./prompts";
 import {
   cleanJson,
@@ -26,6 +28,7 @@ import {
   parseArticleStrategy,
   parseTopicInsights,
 } from "./article-strategy";
+import { logLlmPrompt } from "./pipeline-log";
 
 function errnoHints(e: unknown): string[] {
   if (typeof e !== "object" || e === null) return [];
@@ -198,11 +201,12 @@ export function createOpenAILlmClient(
   async function completion(
     model: string,
     userPrompt: string,
-    opts: { json?: boolean } = {}
+    opts: { json?: boolean; label?: string } = {}
   ): Promise<string> {
     const jsonHint = opts.json
       ? "\n\nOutput valid JSON only (no markdown code fences, no commentary)."
       : "";
+    if (opts.label) logLlmPrompt(`${opts.label} [openai:${model}]`, userPrompt + jsonHint);
     const tempPart = temperaturePayload(model);
     const hasCustomTemperature = "temperature" in tempPart;
 
@@ -247,7 +251,7 @@ export function createOpenAILlmClient(
         completion(
           fastModel,
           topicInsightsPrompt(scrapedContent, mainTopic, keyword, articleLanguage),
-          { json: true }
+          { json: true, label: "generateTopicInsights" }
         )
       );
       return parseTopicInsights(text);
@@ -274,7 +278,7 @@ export function createOpenAILlmClient(
               insightsText,
               contentBrief
             ),
-            { json: true }
+            { json: true, label: "deriveArticleStrategy" }
           )
         );
         return parseArticleStrategy(text, articleType);
@@ -305,7 +309,7 @@ export function createOpenAILlmClient(
             articleType,
             strategy
           ),
-          { json: true }
+          { json: true, label: "generateOutline" }
         )
       );
       const raw = cleanJson(text);
@@ -372,7 +376,8 @@ export function createOpenAILlmClient(
               contentBrief,
               articleType,
               keywordIntent
-            )
+            ),
+            { label: "generateSectionsMarkdown" }
           ),
         { onGiveUp: () => skippedSectionsPlaceholder(batch) }
       );
@@ -387,6 +392,7 @@ export function createOpenAILlmClient(
       const text = await withOpenAiRetry("generateMeta", fastModel, () =>
         completion(fastModel, metaPrompt(title, excerpt, keyword, articleLanguage), {
           json: true,
+          label: "generateMeta",
         })
       );
       return JSON.parse(cleanJson(text));
@@ -401,7 +407,8 @@ export function createOpenAILlmClient(
       const text = await withOpenAiRetry("generateAltText", fastModel, () =>
         completion(
           fastModel,
-          altTextPrompt(title, keyword, lsiKeywords, articleLanguage)
+          altTextPrompt(title, keyword, lsiKeywords, articleLanguage),
+          { label: "generateAltText" }
         )
       );
       return text.replace(/^"|"$/g, "");
@@ -418,7 +425,7 @@ export function createOpenAILlmClient(
         completion(
           fastModel,
           pickSectionsForImagesPrompt(titles, mainTopic, count),
-          { json: true }
+          { json: true, label: "pickSectionsForImages" }
         )
       );
       const data = JSON.parse(cleanJson(text));
@@ -426,6 +433,46 @@ export function createOpenAILlmClient(
         (i: number) => i >= 0 && i < sections.length
       );
       return indices.slice(0, count);
+    },
+
+    async extractBonusFacts(
+      scrapedMarkdown: string,
+      sourceUrl: string,
+      casinoName: string,
+      sourceType: "official_bonus_page" | "serp_fallback"
+    ): Promise<string> {
+      return withOpenAiRetry("extractBonusFacts", fastModel, () =>
+        completion(
+          fastModel,
+          bonusExtractionPrompt(
+            scrapedMarkdown,
+            sourceUrl,
+            casinoName,
+            sourceType
+          ),
+          { json: true, label: "extractBonusFacts" }
+        )
+      );
+    },
+
+    async extractCasinoFacts(
+      scrapedMarkdown: string,
+      sourceUrl: string,
+      casinoName: string,
+      sourceType: "official_bonus_page" | "serp_fallback"
+    ): Promise<string> {
+      return withOpenAiRetry("extractCasinoFacts", fastModel, () =>
+        completion(
+          fastModel,
+          casinoFactsExtractionPrompt(
+            scrapedMarkdown,
+            sourceUrl,
+            casinoName,
+            sourceType
+          ),
+          { json: true, label: "extractCasinoFacts" }
+        )
+      );
     },
   };
 }

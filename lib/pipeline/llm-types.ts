@@ -69,4 +69,18 @@ export type PipelineLlm = {
     mainTopic: string,
     count: number
   ): Promise<number[]>;
+
+  extractBonusFacts(
+    scrapedMarkdown: string,
+    sourceUrl: string,
+    casinoName: string,
+    sourceType: "official_bonus_page" | "serp_fallback"
+  ): Promise<string>;
+
+  extractCasinoFacts(
+    scrapedMarkdown: string,
+    sourceUrl: string,
+    casinoName: string,
+    sourceType: "official_bonus_page" | "serp_fallback"
+  ): Promise<string>;
 };

@@ -6,11 +6,15 @@ export interface PhasedGeneratePayload {
   keyword: string;
   content_brief: string;
   article_type: string;
+  casino_bonus_page_text?: string | null;
+  casino_site_url?: string | null;
+  target_word_count?: number;
   search_keywords: string[];
   search_country: string;
   search_language: string;
   article_language: string;
   output_format: "markdown" | "html";
+  generate_images?: boolean;
   inline_image_count?: number;
   sitemap_url?: string | null;
 }

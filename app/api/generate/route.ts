@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { NextRequest } from "next/server";
 import { runPipeline } from "@/lib/pipeline/run";
 import { parseArticleInput } from "@/lib/pipeline/parse-input";
@@ -5,6 +6,11 @@ import {
   getPipelineRuntimeEnv,
   validatePipelineEnv,
 } from "@/lib/pipeline/pipeline-env";
+import { createPipelineDetailBuffer } from "@/lib/pipeline/pipeline-log";
+import {
+  appendJobLogSection,
+  initJobLogFile,
+} from "@/lib/pipeline/pipeline-log-file";
 import { saveGeneratedArticle } from "@/lib/supabase/save-article";
 import {
   formatUserProgress,
@@ -40,8 +46,29 @@ export async function POST(request: NextRequest) {
         streamLine(controller, encoder, { type: "progress", message });
       };
 
+      const runId = randomUUID();
+      const log = createPipelineDetailBuffer();
       try {
-        const result = await runPipeline(input, env, emitProgress);
+        await initJobLogFile(runId, {
+          mainTopic: input.main_topic,
+          targetKeyword: input.keyword,
+          mode: "stream",
+        });
+
+        const startedAt = Date.now();
+        const result = await log.collect(() =>
+          runPipeline(input, env, emitProgress)
+        );
+
+        const logPath = await appendJobLogSection(
+          runId,
+          "Pipeline run complete",
+          { durationMs: Date.now() - startedAt, slug: result.slug },
+          log.entries
+        );
+        if (logPath) {
+          console.info("[Pipeline log file]", { runId, logPath });
+        }
 
         emitProgress({ type: "save" });
         const id = await saveGeneratedArticle(input, result);
@@ -65,6 +92,12 @@ export async function POST(request: NextRequest) {
           /UNABLE_TO_VERIFY|certificate|TLS|SSL/i.test(message + cause)
             ? " If this is a dev machine with antivirus/HTTPS inspection, set DEV_TLS_INSECURE=1 in .env.local (see .env.example) or add your corporate root CA via NODE_EXTRA_CA_CERTS."
             : "";
+        await appendJobLogSection(
+          runId,
+          "Pipeline run error",
+          { error: message + tlsHint },
+          log.entries
+        );
         streamLine(controller, encoder, {
           type: "error",
           message: message + tlsHint,

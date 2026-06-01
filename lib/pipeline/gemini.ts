@@ -18,6 +18,8 @@ import {
   metaPrompt,
   altTextPrompt,
   pickSectionsForImagesPrompt,
+  bonusExtractionPrompt,
+  casinoFactsExtractionPrompt,
 } from "./prompts";
 import {
   cleanJson,
@@ -26,6 +28,13 @@ import {
   parseArticleStrategy,
   parseTopicInsights,
 } from "./article-strategy";
+import { logLlmPrompt } from "./pipeline-log";
+
+/** Log the final prompt (env-gated) then return it unchanged for `contents`. */
+function withPromptLog(operation: string, prompt: string): string {
+  logLlmPrompt(`${operation} [gemini]`, prompt);
+  return prompt;
+}
 
 /** @see https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview */
 const GEMINI_MODEL = "gemini-3.1-pro-preview";
@@ -169,11 +178,9 @@ export function createGeminiClient(apiKey: string): PipelineLlm {
       const response = await withGeminiRetry("generateTopicInsights", () =>
         ai.models.generateContent({
           model: GEMINI_MODEL,
-          contents: topicInsightsPrompt(
-            scrapedContent,
-            mainTopic,
-            keyword,
-            articleLanguage
+          contents: withPromptLog(
+            "generateTopicInsights",
+            topicInsightsPrompt(scrapedContent, mainTopic, keyword, articleLanguage)
           ),
           config: {
             temperature: 0.4,
@@ -197,13 +204,16 @@ export function createGeminiClient(apiKey: string): PipelineLlm {
         const response = await withGeminiRetry("deriveArticleStrategy", () =>
           ai.models.generateContent({
             model: GEMINI_MODEL,
-            contents: articleStrategyPrompt(
-              mainTopic,
-              keyword,
-              searchKeywords,
-              articleType,
-              insightsText,
-              contentBrief
+            contents: withPromptLog(
+              "deriveArticleStrategy",
+              articleStrategyPrompt(
+                mainTopic,
+                keyword,
+                searchKeywords,
+                articleType,
+                insightsText,
+                contentBrief
+              )
             ),
             config: {
               temperature: 0.5,
@@ -230,14 +240,17 @@ export function createGeminiClient(apiKey: string): PipelineLlm {
       const response = await withGeminiRetry("generateOutline", () =>
         ai.models.generateContent({
           model: GEMINI_MODEL,
-          contents: outlinePrompt(
-            mainTopic,
-            keyword,
-            insightsText,
-            articleLanguage,
-            contentBrief,
-            articleType,
-            strategy
+          contents: withPromptLog(
+            "generateOutline",
+            outlinePrompt(
+              mainTopic,
+              keyword,
+              insightsText,
+              articleLanguage,
+              contentBrief,
+              articleType,
+              strategy
+            )
           ),
           config: {
             temperature: 0.7,
@@ -294,18 +307,21 @@ export function createGeminiClient(apiKey: string): PipelineLlm {
         async () => {
           const response = await ai.models.generateContent({
             model: GEMINI_MODEL,
-            contents:             sectionsPrompt(
-              sectionsText,
-              contextText,
-              mainTopic,
-              keyword,
-              linksBlock,
-              lsiKeywords,
-              previousContent,
-              articleLanguage,
-              contentBrief,
-              articleType,
-              keywordIntent
+            contents: withPromptLog(
+              "generateSectionsMarkdown",
+              sectionsPrompt(
+                sectionsText,
+                contextText,
+                mainTopic,
+                keyword,
+                linksBlock,
+                lsiKeywords,
+                previousContent,
+                articleLanguage,
+                contentBrief,
+                articleType,
+                keywordIntent
+              )
             ),
             config: { temperature: 0.8 },
           });
@@ -324,7 +340,10 @@ export function createGeminiClient(apiKey: string): PipelineLlm {
       const response = await withGeminiRetry("generateMeta", () =>
         ai.models.generateContent({
           model: GEMINI_MODEL,
-          contents: metaPrompt(title, excerpt, keyword, articleLanguage),
+          contents: withPromptLog(
+            "generateMeta",
+            metaPrompt(title, excerpt, keyword, articleLanguage)
+          ),
           config: {
             temperature: 0.5,
             responseMimeType: "application/json",
@@ -344,11 +363,9 @@ export function createGeminiClient(apiKey: string): PipelineLlm {
       const response = await withGeminiRetry("generateAltText", () =>
         ai.models.generateContent({
           model: GEMINI_MODEL,
-          contents: altTextPrompt(
-            title,
-            keyword,
-            lsiKeywords,
-            articleLanguage
+          contents: withPromptLog(
+            "generateAltText",
+            altTextPrompt(title, keyword, lsiKeywords, articleLanguage)
           ),
           config: { temperature: 0.5 },
         })
@@ -366,7 +383,10 @@ export function createGeminiClient(apiKey: string): PipelineLlm {
       const response = await withGeminiRetry("pickSectionsForImages", () =>
         ai.models.generateContent({
           model: GEMINI_MODEL,
-          contents: pickSectionsForImagesPrompt(titles, mainTopic, count),
+          contents: withPromptLog(
+            "pickSectionsForImages",
+            pickSectionsForImagesPrompt(titles, mainTopic, count)
+          ),
           config: {
             temperature: 0.2,
             responseMimeType: "application/json",
@@ -379,6 +399,50 @@ export function createGeminiClient(apiKey: string): PipelineLlm {
         (i: number) => i >= 0 && i < sections.length
       );
       return indices.slice(0, count);
+    },
+
+    async extractBonusFacts(
+      scrapedMarkdown: string,
+      sourceUrl: string,
+      casinoName: string,
+      sourceType: "official_bonus_page" | "serp_fallback"
+    ): Promise<string> {
+      const response = await withGeminiRetry("extractBonusFacts", () =>
+        ai.models.generateContent({
+          model: GEMINI_MODEL,
+          contents: withPromptLog(
+            "extractBonusFacts",
+            bonusExtractionPrompt(scrapedMarkdown, sourceUrl, casinoName, sourceType)
+          ),
+          config: {
+            temperature: 0.1,
+            responseMimeType: "application/json",
+          },
+        })
+      );
+      return cleanJson(response.text ?? "{}");
+    },
+
+    async extractCasinoFacts(
+      scrapedMarkdown: string,
+      sourceUrl: string,
+      casinoName: string,
+      sourceType: "official_bonus_page" | "serp_fallback"
+    ): Promise<string> {
+      const response = await withGeminiRetry("extractCasinoFacts", () =>
+        ai.models.generateContent({
+          model: GEMINI_MODEL,
+          contents: withPromptLog(
+            "extractCasinoFacts",
+            casinoFactsExtractionPrompt(scrapedMarkdown, sourceUrl, casinoName, sourceType)
+          ),
+          config: {
+            temperature: 0.1,
+            responseMimeType: "application/json",
+          },
+        })
+      );
+      return cleanJson(response.text ?? "{}");
     },
   };
 }

@@ -11,6 +11,10 @@ import {
   type PipelineProgressEvent,
 } from "@/lib/pipeline/progress";
 import { createPipelineDetailBuffer } from "@/lib/pipeline/pipeline-log";
+import {
+  appendJobLogSection,
+  initJobLogFile,
+} from "@/lib/pipeline/pipeline-log-file";
 import type { PipelineDetailEntry } from "@/lib/pipeline/pipeline-detail";
 import type { ArticleResult } from "@/lib/pipeline/types";
 import type { GenerationJobRow, JobPhase } from "@/lib/pipeline/job-state";
@@ -48,6 +52,18 @@ function logStepComplete(
       phase: context.startedPhase,
       durationMs: context.durationMs,
     });
+  }
+}
+
+async function persistStepLogToFile(
+  jobId: string,
+  title: string,
+  meta: Record<string, unknown>,
+  entries: PipelineDetailEntry[]
+): Promise<void> {
+  const logPath = await appendJobLogSection(jobId, title, meta, entries);
+  if (logPath) {
+    console.info("[Pipeline log file]", { jobId, logPath });
   }
 }
 
@@ -219,6 +235,12 @@ export async function POST(_request: NextRequest, context: RouteContext) {
   }
 
   const stepStartedAt = Date.now();
+  await initJobLogFile(jobId, {
+    mainTopic: job.input.main_topic,
+    targetKeyword: job.input.keyword,
+    searchCountry: job.input.search_country,
+    searchLanguage: job.input.search_language,
+  });
   const log = createPipelineDetailBuffer();
   log.push({
     level: "info",
@@ -265,6 +287,19 @@ export async function POST(_request: NextRequest, context: RouteContext) {
         reconciled,
         done: true,
       });
+      await persistStepLogToFile(
+        jobId,
+        "Job step complete",
+        {
+          requestId,
+          phase: startedPhase,
+          nextPhase: "done",
+          durationMs: Date.now() - stepStartedAt,
+          reconciled,
+          done: true,
+        },
+        log.entries
+      );
 
       return buildCompletedResponse(
         jobId,
@@ -305,6 +340,20 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       reconciled,
       done: false,
     });
+    const stepDurationMs = Date.now() - stepStartedAt;
+    await persistStepLogToFile(
+      jobId,
+      "Job step complete",
+      {
+        requestId,
+        phase: startedPhase,
+        nextPhase: row.phase,
+        durationMs: stepDurationMs,
+        reconciled,
+        done: false,
+      },
+      log.entries
+    );
 
     if (row.status === "completed") {
       return buildCompletedResponse(jobId, row, messages, undefined, log.entries);
@@ -349,6 +398,12 @@ export async function POST(_request: NextRequest, context: RouteContext) {
     const current = await getGenerationJob(jobId);
     if (current) {
       if (current.status === "completed" && current.result_id) {
+        await persistStepLogToFile(
+          jobId,
+          "Job step error (job already completed)",
+          { requestId, phase: startedPhase, durationMs, error: fullMessage },
+          log.entries
+        );
         return buildCompletedResponse(
           jobId,
           current,
@@ -376,10 +431,27 @@ export async function POST(_request: NextRequest, context: RouteContext) {
           durationMs,
           nextPhase: current.phase,
         });
+        await persistStepLogToFile(
+          jobId,
+          "Job step reconciled",
+          {
+            requestId,
+            phase: startedPhase,
+            nextPhase: current.phase,
+            durationMs,
+          },
+          log.entries
+        );
         return buildRunningResponse(jobId, current, [], log.entries);
       }
 
       if (isConcurrentJobUpdateError(err)) {
+        await persistStepLogToFile(
+          jobId,
+          "Job step concurrent update",
+          { requestId, phase: startedPhase, durationMs },
+          log.entries
+        );
         return Response.json(
           {
             error: CONCURRENT_JOB_UPDATE_MESSAGE,
@@ -401,6 +473,13 @@ export async function POST(_request: NextRequest, context: RouteContext) {
         }
       }
     }
+
+    await persistStepLogToFile(
+      jobId,
+      "Job step error",
+      { requestId, phase: startedPhase, durationMs, error: fullMessage },
+      log.entries
+    );
 
     return Response.json(
       { error: fullMessage, details: log.entries },

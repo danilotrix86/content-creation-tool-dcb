@@ -28,8 +28,30 @@ export const ARTICLE_TYPE_SECTION_DEFAULTS: Record<
   commercial: { min: 8, max: 12 },
   transactional: { min: 6, max: 10 },
   listicle: { min: 10, max: 15 },
-  casino_review: { min: 8, max: 14 },
+  casino_review: { min: 6, max: 8 },
 };
+
+/** Approximate words produced per H2 section; used to map a target length to a section count. */
+export const WORDS_PER_SECTION = 250;
+export const MIN_SECTION_COUNT = 2;
+
+/**
+ * Maps a desired total word count to an H2 section range. The total article
+ * length scales with the number of sections (~250 words each), so the user's
+ * length selection drives how many sections the outline produces.
+ */
+export function sectionRangeForTarget(targetWords: number): {
+  min: number;
+  max: number;
+} {
+  const safe =
+    Number.isFinite(targetWords) && targetWords > 0 ? targetWords : 2000;
+  const count = Math.max(
+    MIN_SECTION_COUNT,
+    Math.round(safe / WORDS_PER_SECTION)
+  );
+  return { min: Math.max(MIN_SECTION_COUNT, count - 1), max: count + 1 };
+}
 
 function normalizeStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];

@@ -1,4 +1,5 @@
 import { pipelineDetail, truncateForLog } from "./pipeline-log";
+import { scrapeFetch } from "./scrape-fetch";
 
 export type ScrapeLocaleHint = {
   /** SerpAPI-style `gl` (ISO 3166-1 alpha-2), e.g. `us`, `ca`. */
@@ -99,7 +100,7 @@ export async function scrapeToMarkdown(
 ): Promise<string> {
   const { apiToken, accountId, profile = "default" } = options;
   const body = buildScrapeBody(url, profile, options.scrapeLocale);
-  const res = await fetch(
+  const res = await scrapeFetch(
     `https://api.cloudflare.com/client/v4/accounts/${accountId}/browser-rendering/markdown`,
     {
       method: "POST",

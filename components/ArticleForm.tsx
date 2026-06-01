@@ -162,13 +162,26 @@ export interface FormData {
   keyword: string;
   content_brief: string;
   article_type: ArticleType;
+  casino_bonus_page_text: string;
+  casino_site_url: string;
+  target_word_count: number;
   search_keywords: string[];
   search_country: string;
   search_language: string;
   article_language: string;
   output_format: "markdown" | "html";
+  generate_images: boolean;
   inline_image_count: 0 | 1 | 2 | 3;
   sitemap_url: string;
+}
+
+const TARGET_WORD_COUNT_OPTIONS = [
+  500, 1000, 1500, 2000, 2500, 3000, 4000, 5000,
+] as const;
+
+/** Locale-independent thousands separator to avoid SSR/client hydration mismatch. */
+function formatWordCount(n: number): string {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
 const initialForm: FormData = {
@@ -176,11 +189,15 @@ const initialForm: FormData = {
   keyword: "",
   content_brief: "",
   article_type: "informational",
+  casino_bonus_page_text: "",
+  casino_site_url: "",
+  target_word_count: 2000,
   search_keywords: [""],
   search_country: "us",
   search_language: "en",
   article_language: "en",
   output_format: "markdown",
+  generate_images: false,
   inline_image_count: 2,
   sitemap_url: "",
 };
@@ -338,6 +355,76 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
         </p>
       </div>
 
+      {form.article_type === "casino_review" && (
+        <>
+          <div>
+            <label className={labelClass}>Bonus Page Text</label>
+            <Tip>
+              Paste the full welcome bonus / promotions page text here. We extract
+              the bonus terms directly from what you paste — no need to pick out
+              individual values. Leave empty to let us search Google instead.
+            </Tip>
+            <textarea
+              rows={6}
+              value={form.casino_bonus_page_text}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  casino_bonus_page_text: e.target.value,
+                }))
+              }
+              placeholder="Paste the entire bonus / promotions page here…"
+              className={`${inputClass} min-h-[140px] resize-y`}
+              disabled={isGenerating}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>Casino Website URL</label>
+            <Tip>
+              Casino homepage. We try to read it for licence, regulator, and
+              operator details to keep trust claims accurate. If it cannot be
+              accessed, we never claim those details are missing.
+            </Tip>
+            <input
+              type="url"
+              value={form.casino_site_url}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, casino_site_url: e.target.value }))
+              }
+              placeholder="https://example-casino.com"
+              className={inputClass}
+              disabled={isGenerating}
+            />
+          </div>
+        </>
+      )}
+
+      <div>
+        <label className={labelClass}>Target Length (words)</label>
+        <Tip>
+          Approximate article length. We add or remove sections to match — longer
+          lengths produce more sections (roughly 250 words each).
+        </Tip>
+        <select
+          value={form.target_word_count}
+          onChange={(e) =>
+            setForm((f) => ({
+              ...f,
+              target_word_count: Number(e.target.value),
+            }))
+          }
+          className={inputClass}
+          disabled={isGenerating}
+        >
+          {TARGET_WORD_COUNT_OPTIONS.map((w) => (
+            <option key={w} value={w}>
+              {formatWordCount(w)} words
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className="border-t border-gray-100 pt-6">
         <h3
           id="section-content-brief"
@@ -490,26 +577,45 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
           </select>
         </div>
         <div>
-          <label className={labelClass}>Inline Images</label>
-          <select
-            value={form.inline_image_count}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                inline_image_count: Number(e.target.value) as 0 | 1 | 2 | 3,
-              }))
-            }
-            className={inputClass}
-            disabled={isGenerating}
-          >
-            <option value={0}>None</option>
-            <option value={1}>1</option>
-            <option value={2}>2</option>
-            <option value={3}>3</option>
-          </select>
+          <label className={`${labelClass} flex items-center gap-2`}>
+            <input
+              type="checkbox"
+              checked={form.generate_images}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  generate_images: e.target.checked,
+                }))
+              }
+              disabled={isGenerating}
+              className="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500"
+            />
+            Generate inline images
+          </label>
           <p className="mt-1 text-xs text-gray-500">
-            Illustrative images in article sections. No hero/featured image.
+            Illustrative images in article sections. Adds generation time and API
+            cost. No hero/featured image.
           </p>
+          {form.generate_images && (
+            <div className="mt-3">
+              <label className={labelClass}>Number of inline images</label>
+              <select
+                value={form.inline_image_count}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    inline_image_count: Number(e.target.value) as 0 | 1 | 2 | 3,
+                  }))
+                }
+                className={inputClass}
+                disabled={isGenerating}
+              >
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+              </select>
+            </div>
+          )}
         </div>
       </div>
 

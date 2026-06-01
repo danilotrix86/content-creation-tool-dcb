@@ -6,8 +6,11 @@ import type {
   InternalLink,
   TopicInsights,
 } from "./types";
-import { resolveInlineImageCount } from "./types";
-import { formatTopicInsightsForPrompt } from "./article-strategy";
+import { effectiveInlineImageCount } from "./types";
+import {
+  formatTopicInsightsForPrompt,
+  sectionRangeForTarget,
+} from "./article-strategy";
 import {
   COMPETITOR_BUNDLE_LOG_MAX_CHARS,
   pipelineDetail,
@@ -15,11 +18,20 @@ import {
   pipelineDetailText,
 } from "./pipeline-log";
 import { countWords, calculateReadingTime } from "./utils";
+import {
+  appendBonusResearchToBrief,
+  researchCasinoBonus,
+} from "./bonus-research";
+import {
+  appendCasinoResearchToBrief,
+  researchCasinoSite,
+} from "./casino-site-research";
 import { searchGoogle } from "./serp";
 import {
   scrapeArticles,
   formatScrapedForPrompt,
-} from "./cloudflare";
+  hasScraper,
+} from "./scrape";
 import { fetchSitemapUrls, selectRelevantUrls } from "./sitemap";
 import {
   createPipelineLlm,
@@ -130,7 +142,7 @@ export async function runPipeline(
   },
   onProgress?: (event: PipelineProgressEvent) => void
 ): Promise<ArticleResult> {
-  const inlineImageCount = resolveInlineImageCount(input.inline_image_count);
+  const inlineImageCount = effectiveInlineImageCount(input);
 
   onProgress?.({ type: "start" });
   pipelineDetail("Run started", {
@@ -168,12 +180,7 @@ export async function runPipeline(
         .filter(Boolean)
     ),
   ];
-  if (
-    serpKeywords.length &&
-    env.SERPAPI_KEY &&
-    env.CLOUDFLARE_API_TOKEN &&
-    env.CLOUDFLARE_ACCOUNT_ID
-  ) {
+  if (serpKeywords.length && env.SERPAPI_KEY && hasScraper(env)) {
     onProgress?.({
       type: "search_google",
       keywords: serpKeywords,
@@ -196,12 +203,12 @@ export async function runPipeline(
       attempted: urls.length,
     });
     const articles = await scrapeArticles(urls, {
-      apiToken: env.CLOUDFLARE_API_TOKEN,
-      accountId: env.CLOUDFLARE_ACCOUNT_ID,
+      scrapeEnv: env,
       scrapeLocale: {
         country: input.search_country,
         language: input.search_language,
       },
+      kind: "competitor",
     });
     onProgress?.({
       type: "read_competitor_pages",
@@ -254,11 +261,38 @@ export async function runPipeline(
         ? "no keyword or search_keywords"
         : !env.SERPAPI_KEY
           ? "SERPAPI_KEY missing"
-          : !env.CLOUDFLARE_API_TOKEN || !env.CLOUDFLARE_ACCOUNT_ID
-            ? "Cloudflare credentials missing"
+          : !hasScraper(env)
+            ? "no scraper configured (set SCRAPEDO_TOKEN or Cloudflare credentials)"
             : "unknown",
       hasSerpKey: Boolean(env.SERPAPI_KEY),
-      hasCloudflare: Boolean(env.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_ACCOUNT_ID),
+      hasScraper: hasScraper(env),
+    });
+  }
+
+  let enrichedContentBrief = input.content_brief;
+  if (input.article_type === "casino_review") {
+    onProgress?.({ type: "research_bonus" });
+    pipelineDetail("Casino bonus + site research", {
+      hasPastedBonus: Boolean(input.casino_bonus_page_text),
+      casinoSiteUrl: input.casino_site_url ?? null,
+    });
+    const bonusResearch = await researchCasinoBonus(input, env, llm);
+    const casinoResearch = await researchCasinoSite(input, env, llm, {
+      priorScrapes: bonusResearch.scraped_markdown
+        ? [bonusResearch.scraped_markdown]
+        : [],
+    });
+    enrichedContentBrief = appendCasinoResearchToBrief(
+      appendBonusResearchToBrief(input.content_brief, bonusResearch),
+      casinoResearch
+    );
+    pipelineDetail("Bonus + site research complete", {
+      bonusStatus: bonusResearch.status,
+      bonusConfidence: bonusResearch.confidence,
+      bonusSource: bonusResearch.source_url,
+      casinoStatus: casinoResearch.status,
+      casinoConfidence: casinoResearch.confidence,
+      casinoSource: casinoResearch.source_url,
     });
   }
 
@@ -273,8 +307,17 @@ export async function runPipeline(
     input.search_keywords,
     input.article_type,
     topicInsights,
-    input.content_brief
+    enrichedContentBrief
   );
+  if (input.target_word_count) {
+    strategy.recommended_section_range = sectionRangeForTarget(
+      input.target_word_count
+    );
+    pipelineDetail("Section range set from target length", {
+      target_word_count: input.target_word_count,
+      recommended_section_range: strategy.recommended_section_range,
+    });
+  }
   pipelineDetail("Article strategy derived", {
     article_type: input.article_type,
     keyword_intent: strategy.keyword_intent,
@@ -301,7 +344,7 @@ export async function runPipeline(
     input.keyword,
     topicInsights,
     input.article_language,
-    input.content_brief,
+    enrichedContentBrief,
     input.article_type,
     strategy
   );
@@ -340,7 +383,7 @@ export async function runPipeline(
     input.main_topic,
     input.keyword,
     input.article_language,
-    input.content_brief,
+    enrichedContentBrief,
     internalLinks.length ? internalLinks : null,
     onProgress
   );

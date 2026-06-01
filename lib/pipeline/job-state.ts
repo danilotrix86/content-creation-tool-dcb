@@ -2,6 +2,8 @@ import type {
   ArticleInput,
   ArticleOutline,
   ArticleStrategy,
+  BonusResearchResult,
+  CasinoSiteResearchResult,
   InternalLink,
   TopicInsights,
 } from "./types";
@@ -10,6 +12,7 @@ export type JobPhase =
   | "research_serp"
   | "research_scrape"
   | "research_insights"
+  | "research_bonus"
   | "plan_strategy"
   | "plan_outline"
   | "plan_internal_links"
@@ -28,6 +31,9 @@ export interface PipelineJobState {
   scrapeIndex?: number;
   scrapedArticles?: { url: string; content: string }[];
   topicInsights?: TopicInsights | null;
+  bonusResearch?: BonusResearchResult;
+  casinoResearch?: CasinoSiteResearchResult;
+  enrichedContentBrief?: string;
   strategy?: ArticleStrategy;
   outline?: ArticleOutline;
   internalLinks?: InternalLink[];
@@ -58,6 +64,7 @@ export const JOB_PHASE_ORDER: JobPhase[] = [
   "research_serp",
   "research_scrape",
   "research_insights",
+  "research_bonus",
   "plan_strategy",
   "plan_outline",
   "plan_internal_links",

@@ -1,5 +1,5 @@
 import type { ArticleInput, ArticleResult } from "./types";
-import { resolveInlineImageCount } from "./types";
+import { effectiveInlineImageCount } from "./types";
 import {
   COMPETITOR_BUNDLE_LOG_MAX_CHARS,
   pipelineDetail,
@@ -9,10 +9,10 @@ import {
 import { countWords, calculateReadingTime } from "./utils";
 import { searchGoogle } from "./serp";
 import {
-  scrapeArticles,
   scrapeSingleUrl,
   formatScrapedForPrompt,
-} from "./cloudflare";
+  hasScraper,
+} from "./scrape";
 import { fetchSitemapUrls, selectRelevantUrls } from "./sitemap";
 import { createPipelineLlm, pipelineModelLabel } from "./llm-provider";
 import { getAvailableLinks } from "./internal-links";
@@ -29,6 +29,15 @@ import {
   SECTIONS_PER_BATCH,
 } from "./job-state";
 import { saveGeneratedArticle } from "@/lib/supabase/save-article";
+import {
+  appendBonusResearchToBrief,
+  researchCasinoBonus,
+} from "./bonus-research";
+import {
+  appendCasinoResearchToBrief,
+  researchCasinoSite,
+} from "./casino-site-research";
+import { sectionRangeForTarget } from "./article-strategy";
 
 export function injectInlineImage(
   content: string,
@@ -72,8 +81,21 @@ function canDoCompetitorResearch(
   return (
     serpKeywords(input).length > 0 &&
     Boolean(env.SERPAPI_KEY) &&
-    Boolean(env.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_ACCOUNT_ID)
+    hasScraper(env)
   );
+}
+
+function nextPhaseAfterResearch(input: ArticleInput): JobPhase {
+  return input.article_type === "casino_review"
+    ? "research_bonus"
+    : "plan_strategy";
+}
+
+function contentBriefForGeneration(
+  state: PipelineJobState,
+  input: ArticleInput
+): string {
+  return state.enrichedContentBrief ?? input.content_brief;
 }
 
 function totalWriteBatches(state: PipelineJobState): number {
@@ -97,7 +119,7 @@ export async function runJobStep(
 ): Promise<StepResult> {
   const llm = createPipelineLlm(env);
   const openai = createOpenAIImageClient(env.OPENAI_API_KEY, env.OPENAI_IMAGE_MODEL);
-  const inlineImageCount = resolveInlineImageCount(input.inline_image_count);
+  const inlineImageCount = effectiveInlineImageCount(input);
   const progress: PipelineProgressEvent[] = [];
   const nextState: PipelineJobState = { ...state };
 
@@ -110,13 +132,11 @@ export async function runJobStep(
       if (!enabled) {
         pipelineDetail("Competitor research skipped (phased)", {
           hasSerpKey: Boolean(env.SERPAPI_KEY),
-          hasCloudflare: Boolean(
-            env.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_ACCOUNT_ID
-          ),
+          hasScraper: hasScraper(env),
         });
         return {
           progress,
-          nextPhase: "plan_strategy",
+          nextPhase: nextPhaseAfterResearch(input),
           state: nextState,
           done: false,
         };
@@ -143,7 +163,7 @@ export async function runJobStep(
       if (urls.length === 0) {
         return {
           progress,
-          nextPhase: "plan_strategy",
+          nextPhase: nextPhaseAfterResearch(input),
           state: nextState,
           done: false,
         };
@@ -170,7 +190,7 @@ export async function runJobStep(
 
       if (index >= urls.length) {
         const next =
-          scraped.length > 0 ? "research_insights" : "plan_strategy";
+          scraped.length > 0 ? "research_insights" : nextPhaseAfterResearch(input);
         progress.push({
           type: "read_competitor_pages",
           count: scraped.length,
@@ -187,12 +207,12 @@ export async function runJobStep(
       });
 
       const article = await scrapeSingleUrl(url, {
-        apiToken: env.CLOUDFLARE_API_TOKEN!,
-        accountId: env.CLOUDFLARE_ACCOUNT_ID!,
+        scrapeEnv: env,
         scrapeLocale: {
           country: input.search_country,
           language: input.search_language,
         },
+        kind: "competitor",
       });
 
       if (article) {
@@ -209,7 +229,7 @@ export async function runJobStep(
           attempted: urls.length,
         });
         const next =
-          scraped.length > 0 ? "research_insights" : "plan_strategy";
+          scraped.length > 0 ? "research_insights" : nextPhaseAfterResearch(input);
         return { progress, nextPhase: next, state: nextState, done: false };
       }
 
@@ -251,6 +271,41 @@ export async function runJobStep(
 
       return {
         progress,
+        nextPhase: nextPhaseAfterResearch(input),
+        state: nextState,
+        done: false,
+      };
+    }
+
+    case "research_bonus": {
+      progress.push({ type: "research_bonus" });
+      pipelineDetail("Casino bonus + site research", {
+        hasPastedBonus: Boolean(input.casino_bonus_page_text),
+        casinoSiteUrl: input.casino_site_url ?? null,
+        articleType: input.article_type,
+      });
+      const bonusResearch = await researchCasinoBonus(input, env, llm);
+      nextState.bonusResearch = bonusResearch;
+      const casinoResearch = await researchCasinoSite(input, env, llm, {
+        priorScrapes: bonusResearch.scraped_markdown
+          ? [bonusResearch.scraped_markdown]
+          : [],
+      });
+      nextState.casinoResearch = casinoResearch;
+      nextState.enrichedContentBrief = appendCasinoResearchToBrief(
+        appendBonusResearchToBrief(input.content_brief, bonusResearch),
+        casinoResearch
+      );
+      pipelineDetail("Bonus + site research complete", {
+        bonusStatus: bonusResearch.status,
+        bonusConfidence: bonusResearch.confidence,
+        bonusSource: bonusResearch.source_url,
+        casinoStatus: casinoResearch.status,
+        casinoConfidence: casinoResearch.confidence,
+        casinoSource: casinoResearch.source_url,
+      });
+      return {
+        progress,
         nextPhase: "plan_strategy",
         state: nextState,
         done: false,
@@ -259,6 +314,7 @@ export async function runJobStep(
 
     case "plan_strategy": {
       progress.push({ type: "analyze_strategy" });
+      const contentBrief = contentBriefForGeneration(nextState, input);
       pipelineDetail("Article strategy", {
         model: pipelineModelLabel(env, "fast"),
         operation: "deriveArticleStrategy",
@@ -269,8 +325,16 @@ export async function runJobStep(
         input.search_keywords,
         input.article_type,
         nextState.topicInsights ?? null,
-        input.content_brief
+        contentBrief
       );
+      if (input.target_word_count) {
+        const range = sectionRangeForTarget(input.target_word_count);
+        nextState.strategy.recommended_section_range = range;
+        pipelineDetail("Section range set from target length", {
+          target_word_count: input.target_word_count,
+          recommended_section_range: range,
+        });
+      }
       return {
         progress,
         nextPhase: "plan_outline",
@@ -290,7 +354,7 @@ export async function runJobStep(
         input.keyword,
         nextState.topicInsights ?? null,
         input.article_language,
-        input.content_brief,
+        contentBriefForGeneration(nextState, input),
         input.article_type,
         nextState.strategy!
       );
@@ -360,7 +424,7 @@ export async function runJobStep(
         input.main_topic,
         input.keyword,
         input.article_language,
-        input.content_brief,
+        contentBriefForGeneration(nextState, input),
         available,
         outline.lsi_keywords,
         previous,

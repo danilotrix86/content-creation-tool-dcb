@@ -139,6 +139,16 @@ export function pipelineDetailText(
   }
 }
 
+/**
+ * Log the full final prompt sent to an LLM, in chunks, so we can see exactly
+ * what each model received. Enabled by default; set PIPELINE_LOG_PROMPTS=0 to
+ * silence (prompts can be long).
+ */
+export function logLlmPrompt(operation: string, prompt: string): void {
+  if (process.env.PIPELINE_LOG_PROMPTS === "0") return;
+  pipelineDetailText(`LLM prompt → ${operation}`, prompt ?? "");
+}
+
 export function pipelineDetail(
   label: string,
   info?: Record<string, unknown>

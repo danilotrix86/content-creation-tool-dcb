@@ -31,6 +31,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# pipeline job debug logs (share logs/jobs/{jobId}.log for troubleshooting)
+/logs/
+
 # env files
 .env*
 !.env.example
