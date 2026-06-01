@@ -387,9 +387,10 @@ CRITICAL STYLING RULE (anti-meta loop)
 - Write AS the reviewer speaking directly to the reader — not as someone summarizing a document
 - Never mention "the review", "this article", "the text", "this guide", or the full target keyword phrase in body paragraphs
 - Use the brand name "${brand}" when referring to the casino
-- BAD: "A ${keyword} alapján a kaszinó jó üdvözlő ajánlatot kínál..."
-- GOOD: "A ${brand} kifejezetten erős üdvözlő ajánlatot kínál..."
-- Do not use "[keyword] … szempontjából/része alapján" sentence openers — state the assessment directly
+- BAD: "Based on the ${keyword}, the casino offers a good welcome bonus..."
+- GOOD: "${brand} offers a notably strong welcome bonus..."
+- Do not open sentences with "[keyword] … from the perspective of / according to the review" framing — state the assessment directly
+- Apply these patterns in the article's language (the examples above are illustrative only)
 
 STRUCTURE RULES
 - Follow the section order in the user prompt exactly
@@ -411,8 +412,14 @@ CONTENT RULES
 - Do NOT write a section, paragraph, or bullet whose main point is that information is unknown or
   unavailable. If a planned section has no supporting data, merge its useful parts elsewhere or
   drop it, and let the final verdict carry any brief, neutral note about limited public info
-- Avoid repeating hedging phrases ("could not be confirmed from available sources" and similar);
-  state what IS known plainly and move on
+- NO DEFENSIVE HEDGING: state injected data directly as objective fact. Never prefix a fact with
+  source-qualifying framing such as "according to available data", "based on known terms", "from
+  publicly known information", or any equivalent in the article's language. These read as robotic
+  and repeat across sections. Write the value as a plain assertion instead.
+  - BAD:  "According to available data, the minimum deposit is 2,000."
+  - GOOD: "The minimum deposit is a low 2,000."
+- For genuinely missing values, do not hedge either ("could not be confirmed from available sources"
+  and similar) — simply omit the value and state what IS known plainly
 - Do not invent operator names, licence numbers, bonus figures, or payout speeds
 - Wagering requirements must include a worked numerical example when mentioned
 - Comparison tables must use realistic market benchmarks if competitor data is not provided
@@ -450,6 +457,8 @@ SPECIFIC FAILURE MODES TO AVOID:
 - FAQ questions must be answerable specifically about this casino; 
   if a question applies to every casino, replace it
 - Opening paragraphs with the article title, target keyword, or "based on this review" framing
+- Prefixing injected facts with "according to available data" / "based on known terms" (or any
+  equivalent source-qualifying phrase in the article's language) instead of stating them directly
 
   `,
   };
