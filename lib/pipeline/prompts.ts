@@ -13,17 +13,30 @@ const LANGUAGE_INSTRUCTIONS: Record<string, string> = {
   nl: "Write the entire piece in Dutch. Use a professional tone suitable for a Dutch-speaking audience.",
 };
 
+/**
+ * Generic native-fluency clause appended to every language instruction so the
+ * output reads as if written by a native speaker rather than translated.
+ */
+const NATIVE_FLUENCY = `
+Write as a native speaker producing original copy for native readers — not a translation:
+- Use idiomatic phrasing and natural word order for the target language; do NOT translate English sentence structures, idioms, or collocations literally (avoid calques and machine-translation patterns).
+- Respect the language's grammar, agreement, inflection, capitalization, and punctuation conventions.
+- Localize numbers, currency, dates, and units to the target language's conventions.
+- Keep proper nouns, brand names, and bonus/promo codes in their original form; do not translate them.`;
+
 /** Instruction block enforcing output language for any BCP-47-ish code. */
 function lang(langCode: string): string {
   const code = langCode.trim();
-  if (LANGUAGE_INSTRUCTIONS[code]) return LANGUAGE_INSTRUCTIONS[code];
+  if (LANGUAGE_INSTRUCTIONS[code]) {
+    return `${LANGUAGE_INSTRUCTIONS[code]}${NATIVE_FLUENCY}`;
+  }
   try {
     const dn = new Intl.DisplayNames(["en"], { type: "language" });
     const primary = code.split("-")[0] ?? code;
     const label = dn.of(primary) ?? dn.of(code) ?? code;
-    return `Write the entire piece in ${label} (locale: ${code}). Every heading, paragraph, list item, table cell, diagram label, and code comment must be in that language — do not use English unless the target language is English or you are quoting a proper noun/source. Use a professional tone suitable for native speakers of ${label}.`;
+    return `Write the entire piece in ${label} (locale: ${code}). Every heading, paragraph, list item, table cell, diagram label, and code comment must be in that language — do not use English unless the target language is English or you are quoting a proper noun/source. Use a professional tone suitable for native speakers of ${label}.${NATIVE_FLUENCY}`;
   } catch {
-    return `Write the entire piece in the language identified by locale code "${code}". Every heading and paragraph must be in that language. Use a professional tone.`;
+    return `Write the entire piece in the language identified by locale code "${code}". Every heading and paragraph must be in that language. Use a professional tone.${NATIVE_FLUENCY}`;
   }
 }
 
@@ -59,6 +72,8 @@ const CASINO_REVIEW_SEO_RULES = `
 - Per H2 section: ~200-280 words of prose, OR one compact table plus one short paragraph
 - Total article length scales with the number of sections in the outline — write each section to
   its full budget; do NOT pad to hit a number, and do NOT compress sections to keep the piece short
+- Split the section's word budget across 2-4 short paragraphs; keep each paragraph to ~3-4 sentences max — never deliver a section as one long wall-of-text paragraph
+- Every heading must be followed by body prose, not another heading; do not place two headings consecutively
 - FAQ section: maximum 4 Q&As; each answer must be 2 sentences or fewer
 - Use the casino **brand name** (not the full article title and not the word "review") in body copy
 - Cover semantic intent via LSI variants; the exact target keyword is optional and at most once per section — only if it reads naturally in running prose (never as a framing device)
@@ -186,6 +201,8 @@ Article type: Casino review
   comparison vs competitors, and an FAQ (maximum 4 questions, only when 5+ sections are allowed)
 - When the range allows FEWER sections, merge related topics INTO the core sections — never drop the
   bonus, licence/trust, or final verdict sections to stay short
+- Every H2 must carry enough substance for its own body prose; only add an H3 when the H2 has enough
+  content for an intro paragraph first — never plan an H2 whose body would be just another heading
 - Neutral reviewer tone — informative, not hype; flag unclear bonus terms only when evidenced
 - When comparing several casinos, use parallel section labels across brands
 ${common}`,
@@ -284,7 +301,7 @@ ${topicInsights}
       ? `
 Casino review outline rules:
 - Use empty subsections: [] by default for every section
-- At most 1 H3 per H2 when a table or short list truly needs a subheading
+- At most 1 H3 per H2, and only when that H2 has enough content for an intro paragraph before the H3 — never stack two headings with no prose between them
 - Total H3 count across the entire outline must not exceed 4
 `
       : "";
@@ -394,7 +411,8 @@ CRITICAL STYLING RULE (anti-meta loop)
 
 STRUCTURE RULES
 - Follow the section order in the user prompt exactly
-- Each section: 2 focused paragraphs maximum, or a table where specified
+- Each section: 2-4 short paragraphs, or a table where specified; keep every paragraph to ~3-4 sentences and break up long blocks — never deliver a section as one wall-of-text paragraph
+- Write at least one full intro paragraph directly under each ## heading before any ### subheading; every heading must be followed by substantive prose, never immediately by another heading
 - Do not add preamble sections, transition summaries, or meta-commentary about the review itself
 - Do not repeat warnings, caveats, or advice across multiple sections
 
@@ -421,6 +439,13 @@ CONTENT RULES
 - For genuinely missing values, do not hedge either ("could not be confirmed from available sources"
   and similar) — simply omit the value and state what IS known plainly
 - Do not invent operator names, licence numbers, bonus figures, or payout speeds
+- MULTI-DEPOSIT BONUSES: if the welcome offer spans more than one deposit (a tiered/package offer),
+  describe it as a multi-deposit package and state each deposit tier separately (e.g. 1st deposit:
+  X up to N; 2nd deposit: Y). Do NOT collapse a multi-deposit package into a single one-off bonus,
+  and do not imply the full headline amount is available on the first deposit alone
+- PROMO/BONUS CODES: state a code ONLY if it appears in the content brief or researched bonus data.
+  Use it exactly as written there. Do not invent a code, do not reuse a code remembered from other
+  sources, and if no code is provided, simply omit any mention of a code
 - Wagering requirements must include a worked numerical example when mentioned
 - Comparison tables must use realistic market benchmarks if competitor data is not provided
   (e.g. industry-typical wagering of 30–40x, withdrawal times of 0–3 days for e-wallets)
@@ -441,6 +466,10 @@ WHAT TO AVOID
 - Implied guaranteed wins or financial motivation to gamble
 - Padding sentences that explain why a topic matters rather than assessing it
 - FAQ questions that duplicate information already in the body
+- EXTERNAL REVIEW PLATFORMS: do not mention, cite, quote, link, or reference third-party review or
+  aggregator sites (e.g. Trustpilot, AskGamblers, Casino Guru, Reddit) anywhere in the article,
+  including scores like "rated 4.2 on Trustpilot". Base trust assessments only on licence/operator
+  facts and first-hand observations from the provided data
 
 CTA STANDARD
 Use responsible CTAs only:
@@ -706,7 +735,7 @@ Respond EXCLUSIVELY with valid JSON (no markdown fences):
   "source_type": "${sourceType}",
   "block_reason": "blocked_page" | "empty_content" | "no_bonus_found" | "low_confidence" | null,
   "facts": {
-    "bonus_amount": "string or omit",
+    "bonus_amount": "string or omit — if the welcome offer covers multiple deposits, capture the FULL structure (e.g. '1st deposit: 100% up to X; 2nd deposit: 50% up to Y'), not just the headline figure",
     "free_spins": "string or omit",
     "min_deposit": "string or omit",
     "wagering_requirement": "string or omit",
@@ -714,7 +743,7 @@ Respond EXCLUSIVELY with valid JSON (no markdown fences):
     "excluded_games": "string or omit",
     "bonus_cap": "string or omit",
     "expiry": "string or omit",
-    "bonus_code": "string or omit"
+    "bonus_code": "string or omit — only the code explicitly tied to THIS welcome offer on this page"
   },
   "raw_excerpt": "One short verbatim quote (max 200 chars) supporting the main bonus figure, or omit"
 }
@@ -724,6 +753,8 @@ Rules:
 - status "partial" or confidence "low": some facts found but ambiguous or incomplete
 - status "insufficient": page is blocked, unrelated, or contains no extractable bonus terms
 - Omit any fact field not explicitly present — never guess
+- MULTI-DEPOSIT: when the welcome bonus is a multi-deposit / tiered package, record every deposit tier inside "bonus_amount" so the structure is not lost; never reduce it to a single deposit
+- BONUS CODE: extract a code only when it is explicitly attached to the current welcome offer on this page. If several different or clearly outdated/promotional codes appear, prefer the one on the official page and omit the code entirely when uncertain — never carry over a code you are unsure is current
 - If the page looks like a Cloudflare block, 403, or login wall → status "insufficient", block_reason "blocked_page"
 `;
 }
