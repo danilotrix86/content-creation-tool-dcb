@@ -22,7 +22,7 @@ Write as a native speaker producing original copy for native readers — not a t
 - Use idiomatic phrasing and natural word order for the target language; do NOT translate English sentence structures, idioms, or collocations literally (avoid calques and machine-translation patterns).
 - Respect the language's grammar, agreement, inflection, capitalization, and punctuation conventions.
 - Localize numbers, currency, dates, and units to the target language's conventions.
-- Keep proper nouns, brand names, and bonus/promo codes in their original form; do not translate them.`;
+- Keep proper nouns, brand names, and bonus/promo codes in their original form; do not translate them. But still inflect the surrounding grammar around them as a native writer would — add the article, case ending, or particle the language normally requires when a brand name is the subject or object of a sentence (do NOT copy English's article-less "BrandName does X" pattern when the target language would use one).`;
 
 /** Instruction block enforcing output language for any BCP-47-ish code. */
 function lang(langCode: string): string {
@@ -77,6 +77,7 @@ const CASINO_REVIEW_SEO_RULES = `
 - FAQ section: maximum 4 Q&As; each answer must be 2 sentences or fewer
 - Use the casino **brand name** (not the full article title and not the word "review") in body copy
 - Cover semantic intent via LSI variants; the exact target keyword is optional and at most once per section — only if it reads naturally in running prose (never as a framing device)
+- Never glue a keyword fragment onto a common noun as a modifier (e.g. "[brand] review", "[brand] payment", "[brand] withdrawal" used as a noun phrase). Use the natural, correctly inflected word in the target language instead (e.g. "the casino's payout", "its withdrawals") — keyword-stuffed noun stacks read as unnatural in every language
 - Never start a paragraph with "[keyword] alapján", "In this review", "This article", or equivalent meta phrasing
 - Use bullet lists and **bold** for skimming; keep lists short (3-5 items max)
 - Be concise and specific — stop when the point is made; do not pad or recap
@@ -407,6 +408,8 @@ CRITICAL STYLING RULE (anti-meta loop)
 - BAD: "Based on the ${keyword}, the casino offers a good welcome bonus..."
 - GOOD: "${brand} offers a notably strong welcome bonus..."
 - Do not open sentences with "[keyword] … from the perspective of / according to the review" framing — state the assessment directly
+- Do NOT build noun phrases by attaching a topic word to the brand or keyword (e.g. "${brand} payment", "${brand} withdrawal", "${brand} review/opinion"). Refer to the topic with the natural, properly inflected word in the article's language (its payout, its withdrawals, the operator's payments) and let "${brand}" stand alone as a normal subject/object
+- When "${brand}" is the subject or object of a sentence, give it the article, case ending, or particle the article's language normally requires — never copy English's article-less "${brand} does X" pattern
 - Apply these patterns in the article's language (the examples above are illustrative only)
 
 STRUCTURE RULES
