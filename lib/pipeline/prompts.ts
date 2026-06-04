@@ -197,10 +197,18 @@ Article type: Casino review
   2. Welcome bonus and wagering
   3. Trust, licence and responsible gambling
   4. Pros, cons and final verdict (always last, except an optional FAQ after it)
-- When the range allows MORE sections, expand coverage by adding or splitting topics such as:
-  who this casino suits, registration & KYC, payment methods & withdrawals, deposit & withdrawal
-  speed, games & providers, live casino, mobile experience, customer support, security & fairness,
-  comparison vs competitors, and an FAQ (maximum 4 questions, only when 5+ sections are allowed)
+- When the range allows MORE sections, reach the count ONLY by splitting topics you actually have
+  data for. Prefer, in this order: the bonus broken into sub-angles (offer overview, wagering
+  requirement with a worked example, how to claim it / promo code & expiry, max bet & cashout cap),
+  the trust block split (licence & operator, responsible-gambling & complaints policies if listed,
+  country/eligibility availability), "who this casino suits", and a comparison vs typical market terms
+- Feature/service topics (payment methods & withdrawals, deposit/withdrawal speed, crypto, games &
+  providers, live casino, mobile experience, customer support) may be added ONLY when that specific
+  data is present in the brief or research. If it is not, do NOT add them to hit the count — a section
+  the writer can only fill with "no data is available" must never be planned
+- It is correct and expected to plan FEWER sections (the lower end of the range) when the only solid
+  data is the bonus and the licence/operator details. Fewer fully-sourced sections beat more padded
+  ones; never invent a topic just to lengthen the outline
 - When the range allows FEWER sections, merge related topics INTO the core sections — never drop the
   bonus, licence/trust, or final verdict sections to stay short
 - Every H2 must carry enough substance for its own body prose; only add an H3 when the H2 has enough
@@ -311,6 +319,11 @@ Casino review outline rules:
 - Do NOT create a "what players say", "player reviews", "complaints", or "community feedback" style section unless real user-feedback data is provided in the brief or research — without that data such a section can only be speculation; omit it and let the verdict carry trust signals from licence/operator facts instead
 - Do NOT create feature/service sections (payment methods, crypto support, withdrawal speeds/fees, live chat or 24/7 support, game providers, game categories, "Safety Index" or any safety-score) unless that specific data is present in the brief or research. Never add such a section just to reach a section count — if the data is absent, omit the section and fold any genuinely known point into the verdict
 - Never reference a third-party safety score or index (e.g. "Safety Index") in any heading or section
+- lsi_keywords for a casino review MUST be standalone concept terms in the target language (e.g. the
+  target-language words for "welcome bonus", "free spins", "wagering requirement", "licence",
+  "payout limit", "responsible gambling"). Do NOT prepend the casino brand name to them and do NOT
+  output brand+common-noun stacks (e.g. "[brand] review", "[brand] bonus", "[brand] payments"): those
+  cannot be inflected into natural prose and get pasted in as keyword frames
 `
       : "";
 
@@ -529,17 +542,21 @@ export function sectionsPrompt(
   const linksInstruction = linksBlock
     ? "\n- Insert the internal links provided in the 'Internal links' section where context allows naturally"
     : "";
-  const lsiCasinoLine =
-    articleType === "casino_review"
-      ? "- Adapt and inflect each variant to fit the sentence grammar of the target language; NEVER paste a variant verbatim as a brand+noun phrase (e.g. \"[brand] review\", \"[brand] payment\"). If a variant only fits as an unnatural noun stack, use the natural inflected wording instead and skip the literal token\n"
-      : "";
   const lsiBlock = lsiKeywords?.length
-    ? `
+    ? articleType === "casino_review"
+      ? `
+Semantic topics to cover (concepts, NOT phrases to paste):
+${lsiKeywords.join(", ")}
+- Treat each item as a CONCEPT to address where relevant, never as a literal string to insert
+- Express the concept with the natural, correctly inflected words of the target language, and let the
+  brand name stand alone as a normal subject/object — do NOT paste any listed item verbatim, and never
+  build a brand+noun stack or a "[topic] szempontjából / according to [topic]" framing out of it
+- Skip any item that has no supporting data rather than writing around its absence`
+      : `
 LSI Keywords (semantic variants to use in text):
 ${lsiKeywords.join(", ")}
 - Distribute these variants naturally in the text for semantic coverage
-- Do not force them: use where context makes it fluent and natural
-${lsiCasinoLine}`
+- Do not force them: use where context makes it fluent and natural`
     : "";
   const previousContentBlock = previousContent
     ? `
