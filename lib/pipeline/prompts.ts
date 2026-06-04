@@ -304,6 +304,9 @@ Casino review outline rules:
 - Use empty subsections: [] by default for every section
 - At most 1 H3 per H2, and only when that H2 has enough content for an intro paragraph before the H3 — never stack two headings with no prose between them
 - Total H3 count across the entire outline must not exceed 4
+- The article title and every section title must read as a natural question or label in the target language. Use the casino brand name, but NEVER paste the raw keyword as a brand+common-noun phrase (e.g. "[brand] review", "[brand] payment", "[brand] opinion") and never include an untranslated English keyword fragment in a heading
+- Never use "[keyword] alapján", "according to the review", "from the perspective of the review", or equivalent meta framing in any heading
+- Keep brand names in their original form but inflect the surrounding words (article, case ending, particle) as a native writer of the target language would
 `
       : "";
 
@@ -428,19 +431,15 @@ CONTENT RULES
 - Never use a missing, unconfirmed, or unavailable data point as evidence that the casino is
   unreliable, untrustworthy, unsafe, or a scam — absence of data is not a red flag
 - If a specific value (bonus amount, RTP, licence number, withdrawal limit) is not in the brief or
-  researched data, OMIT it. Do not write that it "could not be confirmed", is "unavailable", or
-  "unverified", and do not speculate about why it is missing
-- Do NOT write a section, paragraph, or bullet whose main point is that information is unknown or
-  unavailable. If a planned section has no supporting data, merge its useful parts elsewhere or
-  drop it, and let the final verdict carry any brief, neutral note about limited public info
-- NO DEFENSIVE HEDGING: state injected data directly as objective fact. Never prefix a fact with
-  source-qualifying framing such as "according to available data", "based on known terms", "from
-  publicly known information", or any equivalent in the article's language. These read as robotic
-  and repeat across sections. Write the value as a plain assertion instead.
+  researched data, OMIT it — do not write that it is "unavailable", "unverified", or "could not be
+  confirmed", do not speculate about why it is missing, and do not build a section, paragraph, or
+  bullet around missing data (merge useful parts elsewhere or drop it; any brief, neutral note about
+  limited public info belongs only in the final verdict)
+- NO DEFENSIVE HEDGING: state injected data directly as objective fact — never prefix it with
+  source-qualifying framing ("according to available data", "based on known terms", or any equivalent
+  in the article's language).
   - BAD:  "According to available data, the minimum deposit is 2,000."
   - GOOD: "The minimum deposit is a low 2,000."
-- For genuinely missing values, do not hedge either ("could not be confirmed from available sources"
-  and similar) — simply omit the value and state what IS known plainly
 - Do not invent operator names, licence numbers, bonus figures, or payout speeds
 - MULTI-DEPOSIT BONUSES: if the welcome offer spans more than one deposit (a tiered/package offer),
   describe it as a multi-deposit package and state each deposit tier separately (e.g. 1st deposit:
@@ -489,8 +488,6 @@ SPECIFIC FAILURE MODES TO AVOID:
 - FAQ questions must be answerable specifically about this casino; 
   if a question applies to every casino, replace it
 - Opening paragraphs with the article title, target keyword, or "based on this review" framing
-- Prefixing injected facts with "according to available data" / "based on known terms" (or any
-  equivalent source-qualifying phrase in the article's language) instead of stating them directly
 
   `,
   };
@@ -519,13 +516,17 @@ export function sectionsPrompt(
   const linksInstruction = linksBlock
     ? "\n- Insert the internal links provided in the 'Internal links' section where context allows naturally"
     : "";
+  const lsiCasinoLine =
+    articleType === "casino_review"
+      ? "- Adapt and inflect each variant to fit the sentence grammar of the target language; NEVER paste a variant verbatim as a brand+noun phrase (e.g. \"[brand] review\", \"[brand] payment\"). If a variant only fits as an unnatural noun stack, use the natural inflected wording instead and skip the literal token\n"
+      : "";
   const lsiBlock = lsiKeywords?.length
     ? `
 LSI Keywords (semantic variants to use in text):
 ${lsiKeywords.join(", ")}
 - Distribute these variants naturally in the text for semantic coverage
 - Do not force them: use where context makes it fluent and natural
-`
+${lsiCasinoLine}`
     : "";
   const previousContentBlock = previousContent
     ? `
