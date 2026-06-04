@@ -309,6 +309,8 @@ Casino review outline rules:
 - Never use "[keyword] alapján", "according to the review", "from the perspective of the review", or equivalent meta framing in any heading
 - Keep brand names in their original form but inflect the surrounding words (article, case ending, particle) as a native writer of the target language would
 - Do NOT create a "what players say", "player reviews", "complaints", or "community feedback" style section unless real user-feedback data is provided in the brief or research — without that data such a section can only be speculation; omit it and let the verdict carry trust signals from licence/operator facts instead
+- Do NOT create feature/service sections (payment methods, crypto support, withdrawal speeds/fees, live chat or 24/7 support, game providers, game categories, "Safety Index" or any safety-score) unless that specific data is present in the brief or research. Never add such a section just to reach a section count — if the data is absent, omit the section and fold any genuinely known point into the verdict
+- Never reference a third-party safety score or index (e.g. "Safety Index") in any heading or section
 `
       : "";
 
@@ -442,7 +444,9 @@ CONTENT RULES
   in the article's language).
   - BAD:  "According to available data, the minimum deposit is 2,000."
   - GOOD: "The minimum deposit is a low 2,000."
-- Do not invent operator names, licence numbers, bonus figures, or payout speeds
+- Do not invent operator names, licence numbers, bonus figures, payout speeds, payment methods,
+  crypto support, support channels (e.g. 24/7 live chat), game providers, or game categories. State
+  a feature as available ONLY if it appears in the brief or research; otherwise omit it entirely
 - MULTI-DEPOSIT BONUSES: if the welcome offer spans more than one deposit (a tiered/package offer),
   describe it as a multi-deposit package and state each deposit tier separately (e.g. 1st deposit:
   X up to N; 2nd deposit: Y). Do NOT collapse a multi-deposit package into a single one-off bonus,
@@ -477,6 +481,10 @@ WHAT TO AVOID
 - SPECULATIVE PLAYER SENTIMENT: do not invent or guess what players "say", "report", or "complain"
   about, and do not hedge it with "likely" / "probably" / "tends to". If no real user-feedback data
   is provided, omit player-opinion content entirely rather than fabricating a consensus
+- SPECULATIVE FEATURE CLAIMS: never assert or imply that a feature exists when it is not in the data
+  (e.g. "it accepts crypto", "there is 24/7 live chat", "the slot section is probably the strongest").
+  Do not dress speculation as analysis with "expectedly / presumably / would be / likely" (or the
+  target-language equivalents). If a feature is not in the data, do not mention it at all
 
 CTA STANDARD
 Use responsible CTAs only:
