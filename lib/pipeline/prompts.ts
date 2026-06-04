@@ -78,6 +78,7 @@ const CASINO_REVIEW_SEO_RULES = `
 - Use the casino **brand name** (not the full article title and not the word "review") in body copy
 - Cover semantic intent via LSI variants; the exact target keyword is optional and at most once per section — only if it reads naturally in running prose (never as a framing device)
 - Never glue a keyword fragment onto a common noun as a modifier (e.g. "[brand] review", "[brand] payment", "[brand] withdrawal" used as a noun phrase). Use the natural, correctly inflected word in the target language instead (e.g. "the casino's payout", "its withdrawals") — keyword-stuffed noun stacks read as unnatural in every language
+- Never use the exact target keyword as a framing device anywhere in a sentence — not just at a paragraph start. Constructions like "from the perspective of [keyword]", "according to [keyword]", "[keyword] suggests/shows", or the target-language equivalents (e.g. "[keyword] szempontjából / szerint / alapján") are banned. State the assessment directly with the brand name as a normal subject instead
 - Never start a paragraph with "[keyword] alapján", "In this review", "This article", or equivalent meta phrasing
 - Use bullet lists and **bold** for skimming; keep lists short (3-5 items max)
 - Be concise and specific — stop when the point is made; do not pad or recap
@@ -307,6 +308,7 @@ Casino review outline rules:
 - The article title and every section title must read as a natural question or label in the target language. Use the casino brand name, but NEVER paste the raw keyword as a brand+common-noun phrase (e.g. "[brand] review", "[brand] payment", "[brand] opinion") and never include an untranslated English keyword fragment in a heading
 - Never use "[keyword] alapján", "according to the review", "from the perspective of the review", or equivalent meta framing in any heading
 - Keep brand names in their original form but inflect the surrounding words (article, case ending, particle) as a native writer of the target language would
+- Do NOT create a "what players say", "player reviews", "complaints", or "community feedback" style section unless real user-feedback data is provided in the brief or research — without that data such a section can only be speculation; omit it and let the verdict carry trust signals from licence/operator facts instead
 `
       : "";
 
@@ -472,6 +474,9 @@ WHAT TO AVOID
   aggregator sites (e.g. Trustpilot, AskGamblers, Casino Guru, Reddit) anywhere in the article,
   including scores like "rated 4.2 on Trustpilot". Base trust assessments only on licence/operator
   facts and first-hand observations from the provided data
+- SPECULATIVE PLAYER SENTIMENT: do not invent or guess what players "say", "report", or "complain"
+  about, and do not hedge it with "likely" / "probably" / "tends to". If no real user-feedback data
+  is provided, omit player-opinion content entirely rather than fabricating a consensus
 
 CTA STANDARD
 Use responsible CTAs only:
