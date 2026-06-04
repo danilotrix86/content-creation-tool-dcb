@@ -360,9 +360,12 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
           <div>
             <label className={labelClass}>Bonus Page Text</label>
             <Tip>
-              Paste the full welcome bonus / promotions page text here. We extract
-              the bonus terms directly from what you paste — no need to pick out
-              individual values. Leave empty to let us search Google instead.
+              Paste the entire page here, including every deposit tier of the
+              welcome package (1st deposit, 2nd deposit, etc.), any promo code,
+              and the page footer — the footer usually carries the operator and
+              licence number we use for trust details. We extract everything
+              directly from what you paste; a partial paste yields a partial
+              bonus description. Leave empty to let us search Google instead.
             </Tip>
             <textarea
               rows={6}
@@ -382,9 +385,10 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
           <div>
             <label className={labelClass}>Casino Website URL</label>
             <Tip>
-              Casino homepage. We try to read it for licence, regulator, and
-              operator details to keep trust claims accurate. If it cannot be
-              accessed, we never claim those details are missing.
+              Casino homepage. Optional when the licence, regulator, and operator
+              details already appear in the pasted bonus page footer above — this
+              is mainly a fallback we read for those trust details. If it cannot
+              be accessed, we never claim those details are missing.
             </Tip>
             <input
               type="url"

@@ -354,12 +354,20 @@ export async function researchCasinoSite(
     ? registrableDomain(input.casino_site_url)
     : null;
 
-  // Path A½: reuse pages already scraped during bonus research. Affiliate review
-  // pages frequently include an operator/licence table (e.g. "#5536/JAZ,
-  // Curaçao, Orange Entertainment B.V."), so extract from them before spending
-  // more scrape credits — and only accept when a licence number or regulator is
-  // actually present.
-  for (const prior of options?.priorScrapes ?? []) {
+  // Path A½: reuse text already in hand for licence extraction. The user's
+  // pasted bonus / promotions page usually carries the operator + licence in its
+  // footer (e.g. "#5536/JAZ, Curaçao, Orange Entertainment B.V."), and affiliate
+  // review pages scraped during bonus research often include an operator/licence
+  // table. Extract from these before spending scrape credits — and only accept
+  // when a licence number or regulator is actually present.
+  const pastedBonusText = input.casino_bonus_page_text?.trim();
+  const priorScrapes = [
+    ...(pastedBonusText
+      ? [{ url: "user-provided bonus page text", content: pastedBonusText }]
+      : []),
+    ...(options?.priorScrapes ?? []),
+  ];
+  for (const prior of priorScrapes) {
     const result = await extractFromMarkdown(
       llm,
       prior.content,
