@@ -57,6 +57,14 @@ function casinoBrandName(keyword: string, mainTopic: string): string {
   return strip(keyword) || strip(mainTopic) || keyword.trim();
 }
 
+/** Article types that share the casino guardrails (single review + commercial pages). */
+const CASINO_TYPES: ArticleType[] = ["casino_review", "casino_commercial"];
+
+/** True for any casino-domain article type (review or commercial comparison page). */
+function isCasinoType(articleType: ArticleType): boolean {
+  return CASINO_TYPES.includes(articleType);
+}
+
 const SEO_RULES = `
 - Insert the main keyword in the first paragraph of every section
 - Use semantic variants and synonyms of the keyword in the text (LSI keywords)
@@ -93,6 +101,97 @@ const VISUAL_ENHANCEMENT_RULES = `
 - Include bullet lists for features, properties, or benefits
 - Use **bold** to highlight key formulas, important results, or critical concepts
 - Do not force visual elements: include only tables and lists when they add real value
+`;
+
+/**
+ * Brand-agnostic guardrails shared by every casino-domain article type
+ * (single review + commercial comparison pages). Keeps accuracy, anti-fabrication,
+ * no-external-review-platform, anti-speculation, and responsible-CTA rules in one
+ * place so the review and commercial prompts cannot drift apart.
+ */
+const CASINO_SHARED_GUARDRAILS = `
+ACCURACY & ANTI-FABRICATION (critical)
+- Use only facts provided in the content brief or the researched data blocks
+- Never claim that a licence number, regulator, operator name, company, or address is "not shown",
+  "not displayed", "hidden", "not visible on the site", or "missing". This tool may not have accessed
+  a casino's own website, so a value being absent from the data you were given does NOT mean it is
+  absent from the casino's site.
+- Never use a missing, unconfirmed, or unavailable data point as evidence that a casino is unreliable,
+  untrustworthy, unsafe, or a scam — absence of data is not a red flag
+- If a specific value (bonus amount, RTP, licence number, withdrawal limit) is not in the brief or
+  researched data, OMIT it — do not write that it is "unavailable", "unverified", or "could not be
+  confirmed", do not speculate about why it is missing, and do not build a section, paragraph, or
+  bullet around missing data
+- NO DEFENSIVE HEDGING: state injected data directly as objective fact — never prefix it with
+  source-qualifying framing ("according to available data", "based on known terms", or any equivalent
+  in the article's language)
+- Do not invent operator names, licence numbers, bonus figures, payout speeds, payment methods,
+  crypto support, support channels (e.g. 24/7 live chat), game providers, or game categories. State
+  a feature as available ONLY if it appears in the brief or research; otherwise omit it entirely
+- MULTI-DEPOSIT BONUSES: if a welcome offer spans more than one deposit (a tiered/package offer),
+  describe it as a multi-deposit package and state each deposit tier separately (e.g. 1st deposit:
+  X up to N; 2nd deposit: Y). Do NOT collapse a multi-deposit package into a single one-off bonus
+- PROMO/BONUS CODES: state a code ONLY if it appears in the content brief or researched bonus data.
+  Use it exactly as written there. Do not invent a code or reuse one remembered from other sources;
+  if no code is provided, omit any mention of a code
+- Wagering requirements must include a worked numerical example when mentioned
+- Comparison tables must use realistic market benchmarks if competitor data is not provided
+  (e.g. industry-typical wagering of 30–40x, withdrawal times of 0–3 days for e-wallets)
+
+WHAT TO AVOID
+- Generic descriptions of how a good casino should behave instead of evaluating the actual ones
+- Hype language: best casino, amazing offer, unbeatable bonus
+- Implied guaranteed wins or financial motivation to gamble
+- Padding sentences that explain why a topic matters rather than assessing it
+- EXTERNAL REVIEW PLATFORMS: do not mention, cite, quote, link, or reference third-party review or
+  aggregator sites (e.g. Trustpilot, AskGamblers, Casino Guru, Reddit) anywhere in the article,
+  including scores like "rated 4.2 on Trustpilot". Base trust assessments only on licence/operator
+  facts and first-hand observations from the provided data
+- SPECULATIVE PLAYER SENTIMENT: do not invent or guess what players "say", "report", or "complain"
+  about, and do not hedge it with "likely" / "probably" / "tends to". If no real user-feedback data
+  is provided, omit player-opinion content entirely rather than fabricating a consensus
+- SPECULATIVE FEATURE CLAIMS: never assert or imply that a feature exists when it is not in the data.
+  Do not dress speculation as analysis with "expectedly / presumably / would be / likely" (or the
+  target-language equivalents). If a feature is not in the data, do not mention it at all
+
+CTA STANDARD
+Use responsible CTAs only:
+  Yes:  "Check current bonus terms before registering"
+        "Verify availability in your country before depositing"
+  No:   "Sign up now", "Claim your bonus today", "Don't miss this offer"
+`;
+
+const CASINO_COMMERCIAL_SEO_RULES = `
+- Per H2 section: ~180-280 words of prose, OR one comparison table plus one short framing paragraph
+- Total article length scales with the number of sections — write each section to its budget; do NOT
+  pad to hit a number, and do NOT compress sections to keep the piece short
+- Split each section into 2-4 short paragraphs; keep each paragraph to ~3-4 sentences max — never
+  deliver a section as one wall-of-text paragraph
+- Every heading must be followed by body prose, not another heading; do not place two headings consecutively
+- FAQ section: maximum 4 Q&As; each answer must be 2 sentences or fewer
+- Refer to each option by its **proper name** (casino brand, bonus name, game/provider title, or payment
+  method) — not the full article title and not the bare target keyword
+- Cover semantic intent via LSI variants; the exact target keyword is optional and at most once per
+  section — only if it reads naturally in running prose (never as a framing device)
+- Never glue a keyword fragment onto a common noun as a modifier; use the natural, correctly inflected
+  word in the target language instead
+- Never use the exact target keyword as a framing device anywhere in a sentence ("from the perspective
+  of [keyword]", "according to [keyword]", or the target-language equivalents). State assessments directly
+- Use bullet lists and **bold** for skimming; keep lists short (3-5 items max)
+- Be concise and specific — stop when the point is made; authoritative, professional tone
+- If internal links are provided, insert them naturally using Markdown [anchor](url)
+`;
+
+const CASINO_COMMERCIAL_VISUAL_RULES = `
+- WHEN the page compares discrete options, include a Markdown comparison table near the top. Columns
+  depend on the subject — use only those you have data for:
+  - casinos: casino, headline bonus, wagering, withdrawal time, min deposit, key payment method, licence
+  - bonuses/offers: offer, wagering, min deposit, expiry, bonus code
+  - games/slots: game/provider, RTP, volatility, key features
+  - payment methods: method, deposit/withdrawal speed, limits, fees
+- Use bullet lists for each option's pros/cons and for the selection criteria
+- Use **bold** to highlight key figures (bonus amounts, wagering, RTP) and standout features
+- Do not force a table or invent data to fill one — include only rows and columns with real values
 `;
 
 export function topicInsightsPrompt(
@@ -216,6 +315,24 @@ Article type: Casino review
 - Neutral reviewer tone — informative, not hype; flag unclear bonus terms only when evidenced
 - When comparing several casinos, use parallel section labels across brands
 ${common}`,
+    casino_commercial: `
+Article type: Commercial gambling page (ranking / comparison / guide / category hub)
+- FIRST identify the subject from the keyword and build the page around it — the compared "options"
+  may be casinos, bonuses/offers, games or slots, software providers, or payment methods:
+  - "top N" / "best casinos" → ranked listicle of casinos
+  - "best ... bonus" / "no deposit bonus" → bonus comparison or guide (bonus types, terms, how to claim)
+  - "best slots" / "online slots" → games/providers page (titles, RTP/volatility, features)
+  - "BLIK casinos" / payment keywords → payment-method comparison or guide
+  - broad category ("online casinos", "online gambling") → category hub: what to look for + top picks + criteria
+- ALWAYS include, in this order: an intro stating the ranking/selection basis (always first), a
+  "how to choose / evaluation criteria" section, a responsible gambling note, and an FAQ (always last)
+- WHEN the page compares discrete options, add a comparison/overview table section near the top and one
+  parallel block per option; WHEN it is a broader explainer/category page, structure it by type and
+  criteria instead of forcing a per-option list
+- Add per-option sub-blocks ONLY for options (casinos, bonuses, games, providers, methods) present in
+  the brief or research; never invent options, names, or ranking positions to reach a section count
+- Use parallel section labels across options so the page is genuinely comparable
+${common}`,
   };
 
   return byType[articleType];
@@ -255,6 +372,7 @@ ${insightsBlock}
 Infer keyword intent from:
 - Main keyword phrasing ("what is", "how to" → informational; "best", "vs", "review" → commercial; "buy", "pricing", "discount" → transactional; brand/product name alone → navigational)
 - For casino_review article type: expect commercial investigation intent (comparisons, "best casino", bonus/payout evaluation) unless keywords clearly indicate a single-brand navigational query
+- For casino_commercial article type: expect commercial intent across the gambling niche (e.g. "best online casinos", "best casino bonus", "no deposit bonus", "best slots", "BLIK casinos") — rankings, comparisons, or category guides whose subject (casinos, bonuses, games, or payment methods) is inferred from the keyword; dense, decision-focused sections, not a single-brand review
 - Secondary keywords as additional intent signals
 - Competitor SERP patterns when available
 
@@ -277,6 +395,7 @@ Rules for recommended_section_range:
 - transactional: typically 6-10 H2s
 - listicle: typically 10-15 H2s
 - casino_review: section count is derived from the requested article length (≈250 words per section) and will be enforced downstream; recommend dense, decision-focused sections
+- casino_commercial: typically 8-12 H2s (intro + selection basis + optional comparison table/per-option blocks + criteria + responsible gambling + FAQ); when a target length is set the count is derived from it downstream
 - Adjust within these bands using competitor data when available; article type takes precedence over SERP length when they conflict
 `;
 }
@@ -326,6 +445,30 @@ Casino review outline rules:
   cannot be inflected into natural prose and get pasted in as keyword frames
 `
       : "";
+  const casinoCommercialOutlineRules =
+    articleType === "casino_commercial"
+      ? `
+Casino commercial page outline rules:
+- Build a comparison / toplist / guide / category structure for the keyword's subject (casinos,
+  bonuses, games, providers, or payment methods); state a clear ranking/selection basis, and include a
+  comparison-table section near the top WHEN the page compares discrete options
+- Subsections (H3) are allowed for per-option entries or evaluation criteria, but only when the parent
+  H2 has an intro paragraph first — never stack two headings with no prose between them
+- Feature only options/items present in the brief or research; never invent names, ranks, or figures
+- The article title and every section title must read as a natural question or label in the target
+  language. NEVER paste the raw keyword as a brand+common-noun phrase and never include an untranslated
+  English keyword fragment in a heading
+- Never use meta framing ("[keyword] alapján", "according to the comparison", "from the perspective of
+  the ranking", or equivalents) in any heading
+- Keep brand, game, provider, and product names in their original form but inflect the surrounding
+  words (article, case ending, particle) as a native writer of the target language would
+- Never reference a third-party safety score or aggregator index (e.g. "Safety Index") in any heading
+- lsi_keywords MUST be standalone concept terms in the target language (e.g. the target-language words
+  for "welcome bonus", "no-deposit bonus", "free spins", "wagering requirement", "RTP", "volatility",
+  "BLIK", "e-wallet", "licence", "payout speed", "responsible gambling"). Do NOT prepend a brand name to
+  them and do NOT output brand+common-noun stacks: those cannot be inflected into natural prose
+`
+      : "";
 
   return `
 You are an expert SEO and content writer. Your goal is to create an outline optimized to rank on the first page of Google.
@@ -341,6 +484,7 @@ ${insightsBlock}
 ${typeRules}
 --- END ARTICLE STRATEGY ---
 ${casinoReviewOutlineRules}
+${casinoCommercialOutlineRules}
 
 Respond EXCLUSIVELY with a valid JSON object (no extra text, no markdown).
 The structure must be:
@@ -439,38 +583,7 @@ STRUCTURE RULES
 - Do not add preamble sections, transition summaries, or meta-commentary about the review itself
 - Do not repeat warnings, caveats, or advice across multiple sections
 
-CONTENT RULES
-- Use only facts provided in the content brief or the researched data blocks
-- ACCURACY (critical): never claim that a licence number, regulator, operator name, company, or
-  address is "not shown", "not displayed", "hidden", "not visible on the site", or "missing".
-  This tool may not have accessed the casino's own website, so a value being absent from the data
-  you were given does NOT mean it is absent from the casino's site.
-- Never use a missing, unconfirmed, or unavailable data point as evidence that the casino is
-  unreliable, untrustworthy, unsafe, or a scam — absence of data is not a red flag
-- If a specific value (bonus amount, RTP, licence number, withdrawal limit) is not in the brief or
-  researched data, OMIT it — do not write that it is "unavailable", "unverified", or "could not be
-  confirmed", do not speculate about why it is missing, and do not build a section, paragraph, or
-  bullet around missing data (merge useful parts elsewhere or drop it; any brief, neutral note about
-  limited public info belongs only in the final verdict)
-- NO DEFENSIVE HEDGING: state injected data directly as objective fact — never prefix it with
-  source-qualifying framing ("according to available data", "based on known terms", or any equivalent
-  in the article's language).
-  - BAD:  "According to available data, the minimum deposit is 2,000."
-  - GOOD: "The minimum deposit is a low 2,000."
-- Do not invent operator names, licence numbers, bonus figures, payout speeds, payment methods,
-  crypto support, support channels (e.g. 24/7 live chat), game providers, or game categories. State
-  a feature as available ONLY if it appears in the brief or research; otherwise omit it entirely
-- MULTI-DEPOSIT BONUSES: if the welcome offer spans more than one deposit (a tiered/package offer),
-  describe it as a multi-deposit package and state each deposit tier separately (e.g. 1st deposit:
-  X up to N; 2nd deposit: Y). Do NOT collapse a multi-deposit package into a single one-off bonus,
-  and do not imply the full headline amount is available on the first deposit alone
-- PROMO/BONUS CODES: state a code ONLY if it appears in the content brief or researched bonus data.
-  Use it exactly as written there. Do not invent a code, do not reuse a code remembered from other
-  sources, and if no code is provided, simply omit any mention of a code
-- Wagering requirements must include a worked numerical example when mentioned
-- Comparison tables must use realistic market benchmarks if competitor data is not provided
-  (e.g. industry-typical wagering of 30–40x, withdrawal times of 0–3 days for e-wallets)
-
+${CASINO_SHARED_GUARDRAILS}
 WHAT TO INCLUDE
 - Concrete pros and cons that are specific to this casino, not generic casino advice
 - At least one practical observation per major section (bonus terms visibility, cashier 
@@ -480,30 +593,9 @@ WHAT TO INCLUDE
   information. Do not manufacture a red flag to seem balanced
 - A responsible gambling mention in the final verdict, not repeated throughout
 
-WHAT TO AVOID
+MORE TO AVOID (review-specific)
 - "Check the terms before depositing" repeated in every section
-- Generic descriptions of how a good casino should behave instead of evaluating this one
-- Hype language: best casino, amazing offer, unbeatable bonus
-- Implied guaranteed wins or financial motivation to gamble
-- Padding sentences that explain why a topic matters rather than assessing it
 - FAQ questions that duplicate information already in the body
-- EXTERNAL REVIEW PLATFORMS: do not mention, cite, quote, link, or reference third-party review or
-  aggregator sites (e.g. Trustpilot, AskGamblers, Casino Guru, Reddit) anywhere in the article,
-  including scores like "rated 4.2 on Trustpilot". Base trust assessments only on licence/operator
-  facts and first-hand observations from the provided data
-- SPECULATIVE PLAYER SENTIMENT: do not invent or guess what players "say", "report", or "complain"
-  about, and do not hedge it with "likely" / "probably" / "tends to". If no real user-feedback data
-  is provided, omit player-opinion content entirely rather than fabricating a consensus
-- SPECULATIVE FEATURE CLAIMS: never assert or imply that a feature exists when it is not in the data
-  (e.g. "it accepts crypto", "there is 24/7 live chat", "the slot section is probably the strongest").
-  Do not dress speculation as analysis with "expectedly / presumably / would be / likely" (or the
-  target-language equivalents). If a feature is not in the data, do not mention it at all
-
-CTA STANDARD
-Use responsible CTAs only:
-  Yes:  "Check current bonus terms before registering"
-        "Verify availability in your country before depositing"
-  No:   "Sign up now", "Claim your bonus today", "Don't miss this offer"
 
 SPECIFIC FAILURE MODES TO AVOID:
 - Do not reproduce CTA instructions verbatim from this prompt into the article
@@ -515,6 +607,58 @@ SPECIFIC FAILURE MODES TO AVOID:
   if a question applies to every casino, replace it
 - Opening paragraphs with the article title, target keyword, or "based on this review" framing
 
+  `,
+    casino_commercial: `
+You are writing a commercial page in the online casino / gambling niche — a ranking, comparison,
+bonus/game guide, or category page. FIRST match the subject to the keyword: the compared "options"
+may be casinos, bonuses/offers, games or slots, software providers, or payment methods.
+
+LENGTH BUDGET
+- Each ## section: ~180-280 words, OR a comparison table plus one short framing paragraph
+- Write each section to its budget; the total length is set by the number of sections, so do not pad
+  or recap across sections
+
+TONE
+Neutral, expert comparison — like a seasoned player weighing real options. Help the reader choose; do
+not hard-sell any single option and do not moralize.
+
+CRITICAL STYLING RULE (anti-meta loop)
+- Write AS the expert speaking directly to the reader — not as someone summarizing a document
+- Never mention "the comparison", "this article", "the text", "this ranking", or the full target
+  keyword phrase in body paragraphs
+- Refer to each option by its proper name (casino brand, bonus name, game/provider title, or payment
+  method); never use the bare target keyword as a noun for an option
+- Do not use the target keyword as a framing device ("from the perspective of [keyword]", "according
+  to the ranking"); state assessments directly
+- When a proper name is the subject or object of a sentence, give it the article, case ending, or
+  particle the article's language normally requires — never copy English's article-less pattern
+- Apply these patterns in the article's language (examples are illustrative only)
+
+STRUCTURE & COMPARISON RULES
+- Follow the section order in the user prompt exactly
+- WHEN comparing discrete options: keep entries parallel (present the same facts in the same order for
+  every option so they are comparable), and use a comparison table near the top — only with columns
+  you have data for (the columns depend on the subject; e.g. casinos → bonus, wagering, withdrawal,
+  min deposit, licence; bonuses → offer, wagering, min deposit, expiry; games → provider, RTP, features)
+- WHEN comparing discrete options, give each featured option one short block: what it is best for, its
+  key fact/figure (only if provided), and 1-2 specific pros and cons — never identical boilerplate
+- WHEN the page is a broader explainer/category page, structure it by type and criteria instead of a
+  per-option list
+- Write at least one full intro paragraph under each ## heading before any ### subheading; never stack
+  two headings with no prose between them
+- Do not invent options, rankings, or positions; feature only options present in the brief or research.
+  If only a few have data, feature those and keep the list honest
+${CASINO_SHARED_GUARDRAILS}
+WHAT TO INCLUDE
+- A clear basis for the ranking/selection (the criteria you actually applied), stated once up front
+- Realistic market benchmarks are allowed ONLY when clearly framed as typical/industry-standard
+  (e.g. "wagering is usually 30-40x"); never present an invented figure as a named option's confirmed term
+- A single responsible gambling note (18+, play responsibly) — once, not in every section
+
+MORE TO AVOID (commercial-specific)
+- Declaring offshore casinos "legal" in a specific country unless the brief states it
+- Ranking language that implies guaranteed wins or urgency ("act now", "limited time")
+- Repeating the same pro/con wording across multiple options
   `,
   };
 
@@ -543,7 +687,7 @@ export function sectionsPrompt(
     ? "\n- Insert the internal links provided in the 'Internal links' section where context allows naturally"
     : "";
   const lsiBlock = lsiKeywords?.length
-    ? articleType === "casino_review"
+    ? isCasinoType(articleType)
       ? `
 Semantic topics to cover (concepts, NOT phrases to paste):
 ${lsiKeywords.join(", ")}
@@ -572,12 +716,18 @@ Do NOT rewrite this content; your sections must follow logically.
     : "";
 
   const seoRules =
-    articleType === "casino_review" ? CASINO_REVIEW_SEO_RULES : SEO_RULES;
+    articleType === "casino_commercial"
+      ? CASINO_COMMERCIAL_SEO_RULES
+      : articleType === "casino_review" ? CASINO_REVIEW_SEO_RULES : SEO_RULES;
   const visualRules =
-    articleType === "casino_review" ? "" : VISUAL_ENHANCEMENT_RULES;
+    articleType === "casino_commercial"
+      ? CASINO_COMMERCIAL_VISUAL_RULES
+      : articleType === "casino_review" ? "" : VISUAL_ENHANCEMENT_RULES;
 
   const openerLine =
-    articleType === "casino_review"
+    articleType === "casino_commercial"
+      ? `You are writing a commercial page in the online casino / gambling niche targeting the keyword "${keyword}" — a ranking, comparison, bonus/game guide, or category page that may cover casinos, bonuses, games, or payment methods. Use the keyword sparingly in natural prose; refer to each option by its proper name and use LSI variants in body text.`
+      : articleType === "casino_review"
       ? `You are writing a standalone casino review for readers evaluating "${casinoBrandName(
           keyword,
           mainTopic

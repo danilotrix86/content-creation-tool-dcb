@@ -9,8 +9,8 @@ import {
 import {
   getContentBriefPlaceholder,
   getDefaultContentBrief,
-  isPolishCasinoReviewTemplate,
-  usesPolishCasinoReviewBrief,
+  hasDefaultContentBrief,
+  isDefaultContentBriefTemplate,
 } from "@/lib/content-brief-templates";
 
 /** Google `hl` (interface language) — SerpAPI-compatible where possible. */
@@ -212,8 +212,10 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
 
   useEffect(() => {
     setForm((f) => {
-      if (usesPolishCasinoReviewBrief(f.article_language, f.article_type)) {
-        if (f.content_brief.trim()) return f;
+      if (hasDefaultContentBrief(f.article_language, f.article_type)) {
+        if (f.content_brief.trim() && !isDefaultContentBriefTemplate(f.content_brief)) {
+          return f;
+        }
         return {
           ...f,
           content_brief: getDefaultContentBrief(
@@ -222,7 +224,7 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
           ),
         };
       }
-      if (isPolishCasinoReviewTemplate(f.content_brief)) {
+      if (isDefaultContentBriefTemplate(f.content_brief)) {
         return { ...f, content_brief: "" };
       }
       return f;
@@ -262,7 +264,7 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
     form.article_language,
     form.article_type
   );
-  const showPolishCasinoReviewBriefHint = usesPolishCasinoReviewBrief(
+  const showDefaultBriefHint = hasDefaultContentBrief(
     form.article_language,
     form.article_type
   );
@@ -440,20 +442,20 @@ export function ArticleForm({ onSubmit, isGenerating }: ArticleFormProps) {
           Editorial direction for the draft: target audience, tone, angle, must-cover ideas, CTAs,
           or things to avoid. Passed into outline and article generation.
         </Tip>
-        {showPolishCasinoReviewBriefHint && (
+        {showDefaultBriefHint && (
           <p className="mb-2 text-xs text-violet-700">
-            Polish casino review template loaded — edit before generating.
+            Template loaded for this language and page type — edit before generating.
           </p>
         )}
         <textarea
           id="content-brief"
-          rows={showPolishCasinoReviewBriefHint ? 14 : 5}
+          rows={showDefaultBriefHint ? 14 : 5}
           value={form.content_brief}
           onChange={(e) =>
             setForm((f) => ({ ...f, content_brief: e.target.value }))
           }
           placeholder={contentBriefPlaceholder}
-          className={`${inputClass} ${showPolishCasinoReviewBriefHint ? "min-h-[320px]" : "min-h-[120px]"} resize-y`}
+          className={`${inputClass} ${showDefaultBriefHint ? "min-h-[320px]" : "min-h-[120px]"} resize-y`}
           disabled={isGenerating}
           aria-labelledby="section-content-brief"
         />

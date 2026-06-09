@@ -9,7 +9,8 @@ export type ArticleType =
   | "commercial"
   | "transactional"
   | "listicle"
-  | "casino_review";
+  | "casino_review"
+  | "casino_commercial";
 
 export type KeywordIntent =
   | "informational"
@@ -214,6 +215,11 @@ export const ARTICLE_TYPE_OPTIONS: {
     label: "Casino review",
     description: "Licensed casino evaluations with bonuses, games, payouts, and verdict",
   },
+  {
+    value: "casino_commercial",
+    label: "Casino commercial page",
+    description: "Rankings, comparisons, and guides for casinos, bonuses, games, or payments",
+  },
 ];
 
 export function normalizeArticleType(value: unknown): ArticleType {
@@ -224,6 +230,7 @@ export function normalizeArticleType(value: unknown): ArticleType {
     "transactional",
     "listicle",
     "casino_review",
+    "casino_commercial",
   ];
   if (typeof value === "string" && valid.includes(value as ArticleType)) {
     return value as ArticleType;

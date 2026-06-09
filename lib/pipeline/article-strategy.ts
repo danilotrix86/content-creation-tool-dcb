@@ -29,6 +29,7 @@ export const ARTICLE_TYPE_SECTION_DEFAULTS: Record<
   transactional: { min: 6, max: 10 },
   listicle: { min: 10, max: 15 },
   casino_review: { min: 6, max: 8 },
+  casino_commercial: { min: 8, max: 12 },
 };
 
 /** Approximate words produced per H2 section; used to map a target length to a section count. */
@@ -230,6 +231,7 @@ export function articleTypeLabel(articleType: ArticleType): string {
     transactional: "Transactional / product",
     listicle: "Listicle",
     casino_review: "Casino review",
+    casino_commercial: "Casino commercial page",
   };
   return labels[articleType];
 }
